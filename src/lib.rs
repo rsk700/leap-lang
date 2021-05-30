@@ -1,3 +1,3 @@
 pub mod leaptypes;
-mod naming;
+pub mod naming;
 pub mod parser;
