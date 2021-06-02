@@ -1,9 +1,12 @@
 [package]
 name = "leap-lang"
 version = "0.1.0"
-authors = ["rsk <rskbox@gmail.com>"]
+authors = ["Roman Kudryavtsev <rskbox@gmail.com>"]
+license-file = "LICENSE.txt"
+description = "Leap language parser"
+repository = "https://github.com/rsk700/leap-lang"
+readme = "README.md"
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
+keywords = ["parser", "lang", "language"]
+categories = ["parsing"]
