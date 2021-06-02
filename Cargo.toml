@@ -1,8 +1,8 @@
 [package]
 name = "leap-lang"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Roman Kudryavtsev <rskbox@gmail.com>"]
-license-file = "LICENSE.txt"
+license = "MIT"
 description = "Leap language parser"
 repository = "https://github.com/rsk700/leap-lang"
 readme = "README.md"
