@@ -5,7 +5,6 @@
 // todo: checks - enum variants should have unique names (eg. if need multiple variants of same type wrap in struct first)
 // todo: only allow structs to be variants of enum
 // todo: checks - type args should be unique relative to struct and enum names, same type arg names can be used in different types
-// todo: separate leap to leap-lib, leap-cli?
 use crate::naming;
 use std::collections::HashMap;
 use std::fmt;
