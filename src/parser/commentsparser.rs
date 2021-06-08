@@ -57,12 +57,15 @@ mod tests {
     fn test_parse() {
         assert_eq!(parse("aaa\nbbb\nccc").len(), 0);
         let comments = parse("    /   aaaa  ");
+        assert_eq!(comments[0].0, 4);
         assert_eq!(comments[0].1.comment, "aaaa");
         assert_eq!(comments[0].1.comment_type, CommentType::Line);
         let comments = parse("    /   aaaa  \n   \n");
+        assert_eq!(comments[0].0, 4);
         assert_eq!(comments[0].1.comment, "aaaa");
         assert_eq!(comments[0].1.comment_type, CommentType::LineAndSeparator);
         let comments = parse("  text /  aaaa   ");
+        assert_eq!(comments[0].0, 7);
         assert_eq!(comments[0].1.comment, "aaaa");
         assert_eq!(comments[0].1.comment_type, CommentType::Trail);
     }
