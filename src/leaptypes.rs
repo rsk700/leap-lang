@@ -70,6 +70,22 @@ pub struct LeapTypePath {
 #[derive(Debug)]
 pub struct LeapSpec(Vec<LeapTypePath>);
 
+#[derive(Debug)]
+pub struct Comment {
+    pub comment: String,
+    pub comment_type: CommentType,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CommentType {
+    // comment takes full line
+    Line,
+    // comment takes full line and have empty line after comment
+    LineAndSeparator,
+    // comment follows some code on the same line
+    Trail,
+}
+
 fn get_alias_of_name(name: &Name, aliases: &HashMap<String, String>) -> Option<String> {
     if let Some(a) = aliases.get(name.get()) {
         Some(a.clone())

@@ -1,5 +1,6 @@
-// todo: fix name
+// todo: fix name typesparser?
 pub mod parser;
+pub mod commentsparser;
 mod parsetree;
 pub mod patherror;
 mod position;
