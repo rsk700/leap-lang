@@ -9,7 +9,6 @@ pub fn parse(data: &str) -> Vec<Position<Comment>> {
     while let Some((i, v)) = chars.next() {
         if v == '/' {
             // ::Line or ::LineAndSeparator comment
-            // todo: detect ::LineAndSeparator comment
             comments.push(Position(
                 i,
                 Comment {
@@ -17,6 +16,13 @@ pub fn parse(data: &str) -> Vec<Position<Comment>> {
                     comment_type: CommentType::Line,
                 },
             ))
+        } else if v == '\n' {
+            // found empty line
+            if let Some(c) = comments.last_mut() {
+                if c.1.comment_type == CommentType::Line {
+                    c.1.comment_type = CommentType::LineAndSeparator;
+                }
+            }
         } else if !v.is_whitespace() {
             // ::Trail comment
             // skip up to `/` or new line
@@ -60,7 +66,7 @@ mod tests {
         assert_eq!(comments[0].0, 4);
         assert_eq!(comments[0].1.comment, "aaaa");
         assert_eq!(comments[0].1.comment_type, CommentType::Line);
-        let comments = parse("    /   aaaa  \n   \n");
+        let comments = parse("    /   aaaa  \n   \nbbb");
         assert_eq!(comments[0].0, 4);
         assert_eq!(comments[0].1.comment, "aaaa");
         assert_eq!(comments[0].1.comment_type, CommentType::LineAndSeparator);
