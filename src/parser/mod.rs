@@ -3,7 +3,7 @@ pub mod parser;
 pub mod commentsparser;
 mod parsetree;
 pub mod patherror;
-mod position;
+pub mod position;
 mod proptypesimple;
 mod token;
 mod tokenstream;
