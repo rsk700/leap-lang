@@ -1,5 +1,5 @@
+use super::itemposition::ItemPosition;
 use super::parsetree::ParseTree;
-use super::position::Position;
 use super::proptypesimple::PropTypeSimple;
 use super::token::Token;
 use super::tokenstream::TokenStream;
@@ -59,7 +59,7 @@ pub struct ValueTypeParser {
 }
 
 impl ValueTypeParser {
-    pub fn parse(data: &str) -> Result<ValueType, Position<String>> {
+    pub fn parse(data: &str) -> Result<ValueType, ItemPosition<String>> {
         let stream = TokenStream::new(&data);
         let mut parser = ValueTypeParser { stream };
         let tree = parser.parse_ptype()?;
@@ -67,8 +67,8 @@ impl ValueTypeParser {
         Ok(ValueType::from(value_type))
     }
 
-    fn parse_ptype(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::PType));
+    fn parse_ptype(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::PType, self.stream.get().0);
         tree.nodes.push(self.parse_name()?);
         if self.stream.get().1 == Token::BracketLeft {
             tree.nodes.push(self.parse_pt_args_block()?);
@@ -76,24 +76,24 @@ impl ValueTypeParser {
         Ok(tree)
     }
 
-    fn parse_pt_args_block(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::PTArgsBlock));
+    fn parse_pt_args_block(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::PTArgsBlock, self.stream.get().0);
         if self.stream.get().1 == Token::BracketLeft {
             self.stream.next();
             tree.nodes.push(self.parse_pt_args()?);
             if self.stream.get().1 == Token::BracketRight {
                 self.stream.next();
             } else {
-                return Err(self.stream.get().replaced("Expecting `]`".to_owned()));
+                return Err(self.stream.get().replace("Expecting `]`".to_owned()));
             }
         } else {
-            return Err(self.stream.get().replaced("Expecting `[`".to_owned()));
+            return Err(self.stream.get().replace("Expecting `[`".to_owned()));
         }
         Ok(tree)
     }
 
-    fn parse_pt_args(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::PTArgs));
+    fn parse_pt_args(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::PTArgs, self.stream.get().0);
         tree.nodes.push(self.parse_ptype()?);
         if let Token::Word(_) = self.stream.get().1 {
             tree.nodes.push(self.parse_pt_args()?);
@@ -101,20 +101,22 @@ impl ValueTypeParser {
         Ok(tree)
     }
 
-    fn parse_name(&mut self) -> Result<ParseTree, Position<String>> {
+    fn parse_name(&mut self) -> Result<ParseTree, ItemPosition<String>> {
         match self.stream.consume() {
-            Position(p, Token::Word(w)) => Ok(ParseTree {
-                variant: Position(*p, TreeVariant::Name(w.clone())),
+            ItemPosition(p, Token::Word(w)) => Ok(ParseTree {
+                variant: TreeVariant::Name(w.clone()),
+                position: *p,
                 nodes: vec![],
             }),
-            p => Err(p.replaced("Expecting name".to_owned())),
+            p => Err(p.replace("Expecting name".to_owned())),
         }
     }
 
     fn tree_to_prop_type_simple(tree: &ParseTree) -> PropTypeSimple {
         // tree -> PType
-        let (name, position) = if let Position(p, TreeVariant::Name(w)) = &tree.nodes[0].variant {
-            (w.clone(), *p)
+        let name_node = &tree.nodes[0];
+        let name = if let TreeVariant::Name(w) = &name_node.variant {
+            w.clone()
         } else {
             panic!("Incorrect parse tree");
         };
@@ -128,8 +130,9 @@ impl ValueTypeParser {
         };
         PropTypeSimple {
             name,
+            name_position: name_node.position,
             args,
-            position,
+            position: tree.position,
         }
     }
 

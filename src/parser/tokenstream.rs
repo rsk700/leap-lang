@@ -1,9 +1,9 @@
-use super::{position::Position, token::Token};
+use super::{itemposition::ItemPosition, token::Token};
 
 pub struct TokenStream {
     cursor: usize,
-    tokens: Vec<Position<Token>>,
-    end: Position<Token>,
+    tokens: Vec<ItemPosition<Token>>,
+    end: ItemPosition<Token>,
 }
 
 impl TokenStream {
@@ -12,12 +12,12 @@ impl TokenStream {
             cursor: 0,
             tokens: Self::tokenize(data),
             // end position for return if tokens is empty
-            end: Position(0, Token::End),
+            end: ItemPosition::new(0, 0, Token::End),
         }
     }
 
-    pub fn tokenize(data: &str) -> Vec<Position<Token>> {
-        let mut tokens: Vec<Position<Token>> = Vec::new();
+    pub fn tokenize(data: &str) -> Vec<ItemPosition<Token>> {
+        let mut tokens: Vec<ItemPosition<Token>> = Vec::new();
         let mut word = String::new();
         let mut word_index = 0;
         let mut is_comment = false;
@@ -30,22 +30,22 @@ impl TokenStream {
             }
             match v {
                 '[' => {
-                    tokens.push(Position(word_index, Token::Word(word)));
-                    tokens.push(Position(i, Token::BracketLeft));
+                    tokens.push(ItemPosition::new(word_index, word.len(), Token::Word(word)));
+                    tokens.push(ItemPosition::new(i, 1, Token::BracketLeft));
                     word = String::new();
                 }
                 ']' => {
-                    tokens.push(Position(word_index, Token::Word(word)));
-                    tokens.push(Position(i, Token::BracketRight));
+                    tokens.push(ItemPosition::new(word_index, word.len(), Token::Word(word)));
+                    tokens.push(ItemPosition::new(i, 1, Token::BracketRight));
                     word = String::new();
                 }
                 ':' => {
-                    tokens.push(Position(word_index, Token::Word(word)));
-                    tokens.push(Position(i, Token::Colon));
+                    tokens.push(ItemPosition::new(word_index, word.len(), Token::Word(word)));
+                    tokens.push(ItemPosition::new(i, 1, Token::Colon));
                     word = String::new();
                 }
                 '/' => {
-                    tokens.push(Position(word_index, Token::Word(word)));
+                    tokens.push(ItemPosition::new(word_index, word.len(), Token::Word(word)));
                     word = String::new();
                     is_comment = true;
                 }
@@ -57,29 +57,29 @@ impl TokenStream {
                         }
                         word.push(v)
                     } else {
-                        tokens.push(Position(word_index, Token::Word(word)));
+                        tokens.push(ItemPosition::new(word_index, word.len(), Token::Word(word)));
                         word = String::new();
                     }
                 }
             }
         }
-        tokens.push(Position(word_index, Token::Word(word)));
+        tokens.push(ItemPosition::new(word_index, word.len(), Token::Word(word)));
         // Adding End token, with position information, because position is not
         // possible to figure it out from previous tokens
-        tokens.push(Position(data.len(), Token::End));
+        tokens.push(ItemPosition::new(data.len(), 0, Token::End));
         tokens
             .into_iter()
             .filter(|t| {
-                if let Position(.., Token::Word(w)) = t {
+                if let ItemPosition(.., Token::Word(w)) = t {
                     !w.is_empty()
                 } else {
                     true
                 }
             })
             .map(|t| match &t {
-                Position(p, Token::Word(w)) => match w.as_str() {
-                    ".struct" => Position(*p, Token::Struct),
-                    ".enum" => Position(*p, Token::Enum),
+                ItemPosition(.., Token::Word(w)) => match w.as_str() {
+                    ".struct" => t.replace(Token::Struct),
+                    ".enum" => t.replace(Token::Enum),
                     _ => t,
                 },
                 _ => t,
@@ -91,20 +91,20 @@ impl TokenStream {
         self.cursor += 1;
     }
 
-    pub fn consume(&mut self) -> &Position<Token> {
+    pub fn consume(&mut self) -> &ItemPosition<Token> {
         self.cursor += 1;
         self.get_by_index(self.cursor - 1)
     }
 
-    pub fn get(&self) -> &Position<Token> {
+    pub fn get(&self) -> &ItemPosition<Token> {
         self.get_by_index(self.cursor)
     }
 
-    pub fn get_by_index(&self, i: usize) -> &Position<Token> {
+    pub fn get_by_index(&self, i: usize) -> &ItemPosition<Token> {
         self.tokens.get(i).unwrap_or_else(|| self.get_end())
     }
 
-    pub fn get_end(&self) -> &Position<Token> {
+    pub fn get_end(&self) -> &ItemPosition<Token> {
         match self.tokens.len() {
             0 => &self.end,
             _ => &self.tokens[self.tokens.len() - 1],
@@ -124,9 +124,9 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Position(0, Token::Struct),
-                Position(8, Token::Word("aa-aa".to_owned())),
-                Position(13, Token::End)
+                ItemPosition::new(0, 7, Token::Struct),
+                ItemPosition::new(8, 5, Token::Word("aa-aa".to_owned())),
+                ItemPosition::new(13, 0, Token::End)
             ]
         );
     }
@@ -138,9 +138,9 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Position(0, Token::Enum),
-                Position(6, Token::Word("aaa".to_owned())),
-                Position(9, Token::End)
+                ItemPosition::new(0, 5, Token::Enum),
+                ItemPosition::new(6, 3, Token::Word("aaa".to_owned())),
+                ItemPosition::new(9, 0, Token::End)
             ]
         );
     }
@@ -152,22 +152,22 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Position(0, Token::Struct),
-                Position(8, Token::Word("aaa".to_owned())),
-                Position(11, Token::BracketLeft),
-                Position(12, Token::Word("a".to_owned())),
-                Position(14, Token::Word("b".to_owned())),
-                Position(15, Token::BracketRight),
-                Position(21, Token::Word("a".to_owned())),
-                Position(22, Token::Colon),
-                Position(24, Token::Word("int".to_owned())),
-                Position(32, Token::Word("b".to_owned())),
-                Position(33, Token::Colon),
-                Position(35, Token::Word("str".to_owned())),
-                Position(53, Token::Word("c".to_owned())),
-                Position(54, Token::Colon),
-                Position(56, Token::Word("bool".to_owned())),
-                Position(60, Token::End)
+                ItemPosition::new(0, 7, Token::Struct),
+                ItemPosition::new(8, 3, Token::Word("aaa".to_owned())),
+                ItemPosition::new(11, 1, Token::BracketLeft),
+                ItemPosition::new(12, 1, Token::Word("a".to_owned())),
+                ItemPosition::new(14, 1, Token::Word("b".to_owned())),
+                ItemPosition::new(15, 1, Token::BracketRight),
+                ItemPosition::new(21, 1, Token::Word("a".to_owned())),
+                ItemPosition::new(22, 1, Token::Colon),
+                ItemPosition::new(24, 3, Token::Word("int".to_owned())),
+                ItemPosition::new(32, 1, Token::Word("b".to_owned())),
+                ItemPosition::new(33, 1, Token::Colon),
+                ItemPosition::new(35, 3, Token::Word("str".to_owned())),
+                ItemPosition::new(53, 1, Token::Word("c".to_owned())),
+                ItemPosition::new(54, 1, Token::Colon),
+                ItemPosition::new(56, 4, Token::Word("bool".to_owned())),
+                ItemPosition::new(60, 0, Token::End)
             ]
         );
     }

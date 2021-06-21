@@ -1,9 +1,22 @@
-// todo: add length of token
-#[derive(PartialEq, Debug)]
-pub struct Position<T>(pub usize, pub T);
+use std::cmp::max;
 
-impl<T> Position<T> {
-    pub fn replaced<U>(&self, x: U) -> Position<U> {
-        Position(self.0, x)
+// todo: path only in struct/enum level
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct Position {
+    pub start: usize,  // index of start utf8 character
+    pub length: usize, // length in utf8 characters
+}
+
+impl Position {
+    pub fn new(start: usize, length: usize) -> Self {
+        Position { start, length }
+    }
+
+    pub fn extend(&self, pos: &Self) -> Self {
+        let length = max(self.length, pos.start + pos.length - self.start);
+        Self {
+            start: self.start,
+            length,
+        }
     }
 }

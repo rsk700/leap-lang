@@ -1,10 +1,13 @@
 use crate::leaptypes::{Name, PropType, SimpleType};
 
+use super::position::Position;
+
 #[derive(Debug)]
 pub struct PropTypeSimple {
     pub name: String,
+    pub name_position: Position,
     pub args: Vec<PropTypeSimple>,
-    pub position: usize,
+    pub position: Position,
 }
 
 impl PropTypeSimple {
@@ -47,7 +50,7 @@ impl PropTypeSimple {
                 }
             }
             name => {
-                let name = Name::new(name.to_owned(), self.position)?;
+                let name = Name::new(name.to_owned(), self.name_position)?;
                 if type_args.contains(&name) {
                     if self.args.is_empty() {
                         Ok(PropType::TypeArg(name))

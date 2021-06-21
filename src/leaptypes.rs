@@ -6,6 +6,7 @@
 // todo: only allow structs to be variants of enum
 // todo: checks - type args should be unique relative to struct and enum names, same type arg names can be used in different types
 use crate::naming;
+use crate::parser::position::Position;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -14,8 +15,7 @@ use std::fmt;
 pub struct Name {
     name: String,
     alias: Option<String>,
-    // position index of this name in source file
-    pub position: usize,
+    pub position: Position,
 }
 
 #[derive(Debug, Clone)]
@@ -38,6 +38,7 @@ pub enum PropType {
 pub struct Prop {
     pub name: Name,
     pub prop_type: PropType,
+    pub position: Position,
 }
 
 #[derive(Debug)]
@@ -99,7 +100,7 @@ fn aliased_from_aliases(name: &Name, aliases: &HashMap<String, String>) -> Resul
 }
 
 impl Name {
-    pub fn new(name: String, position: usize) -> Result<Self, String> {
+    pub fn new(name: String, position: Position) -> Result<Self, String> {
         // todo: checks
         // - min, max length?
         // - allowed symbols?
@@ -250,6 +251,7 @@ impl Prop {
         Ok(Self {
             name: aliased_from_aliases(&self.name, aliases)?,
             prop_type: self.prop_type.to_aliased(aliases)?,
+            position: self.position
         })
     }
 }

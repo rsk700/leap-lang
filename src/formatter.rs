@@ -1,13 +1,21 @@
 use crate::{
-    leaptypes::{LeapEnum, LeapStruct, LeapType, Name, PropType},
-    parser::{commentsparser::parse, parser::Parser, position::Position},
+    leaptypes::{Comment, CommentType, LeapEnum, LeapStruct, LeapType, Name, PropType},
+    parser::{commentsparser::parse, parser::Parser, itemposition::ItemPosition},
 };
 
-pub fn format(data: &str) -> Result<String, Position<String>> {
+// todo: need assign position info for parsed LeapTypes (pos + len?), assign path to LeapType?
+pub fn format(data: &str) -> Result<String, ItemPosition<String>> {
     let types = Parser::parse(data)?;
-    let comments = parse(data).into_iter().peekable();
+    let mut comments = parse(data).into_iter().peekable();
     let mut formatted = vec![];
     for next_type in types {
+        // loop {
+        //     if let Some(p) = comments.peek() {
+        //         if p.0 < next_type
+        //     } else {
+        //         break;
+        //     }
+        // }
         formatted.push(format_type(&&next_type));
     }
     Ok(formatted.join("\n"))
@@ -82,6 +90,14 @@ fn format_prop_type(prop_type: &PropType) -> String {
     }
 }
 
+fn format_top_comment(comment: &Comment) -> String {
+    match comment.comment_type {
+        CommentType::Line => format!("/ {}", comment.comment),
+        CommentType::LineAndSeparator => format!("/ {}\n", comment.comment),
+        _ => panic!("unexpected top comment type"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,7 +114,10 @@ mod tests {
             ".struct s1\n    a: int"
         );
         assert_eq!(format(".enum    e1    s1").unwrap(), ".enum e1\n    s1");
-        assert_eq!(format(".enum    e1[a   b]    s1  v2[ a   b ]").unwrap(), ".enum e1[a b]\n    s1\n    v2[a b]");
+        assert_eq!(
+            format(".enum    e1[a   b]    s1  v2[ a   b ]").unwrap(),
+            ".enum e1[a b]\n    s1\n    v2[a b]"
+        );
     }
 
     #[test]

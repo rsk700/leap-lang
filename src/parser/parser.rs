@@ -1,8 +1,10 @@
+use super::propsimple::PropSimple;
 use super::proptypesimple::PropTypeSimple;
 use super::token::Token;
 use super::tokenstream::TokenStream;
 use super::{
-    parsetree::ParseTree, patherror::PathError, position::Position, treevariant::TreeVariant,
+    itemposition::ItemPosition, parsetree::ParseTree, patherror::PathError,
+    treevariant::TreeVariant,
 };
 use crate::leaptypes::{LeapEnum, LeapSpec, LeapStruct, LeapType, LeapTypePath, Name, Prop};
 use std::fs;
@@ -37,6 +39,7 @@ pub struct Parser {
     stream: TokenStream,
 }
 
+// todo: verify error positions
 impl Parser {
     pub fn parse_paths_iter<'a, T>(paths: T) -> Result<LeapSpec, PathError>
     where
@@ -50,7 +53,7 @@ impl Parser {
         }
         fn parse((path, data): (&str, String)) -> Result<Vec<(&str, LeapType)>, PathError> {
             Parser::parse(&data)
-                .map_err(|e| PathError::new(e.1, path.to_owned(), e.0))
+                .map_err(|e| PathError::new(e.1, path.to_owned(), e.0.start))
                 .map(|t| t.into_iter().map(|t| (path, t)).collect())
         }
         let types = paths
@@ -66,7 +69,7 @@ impl Parser {
         Ok(LeapSpec::new(types))
     }
 
-    pub fn parse(data: &str) -> Result<Vec<LeapType>, Position<String>> {
+    pub fn parse(data: &str) -> Result<Vec<LeapType>, ItemPosition<String>> {
         let stream = TokenStream::new(&data);
         let mut parser = Parser { stream };
         let mut trees = vec![];
@@ -76,27 +79,31 @@ impl Parser {
         if trees.is_empty() {
             Ok(vec![])
         } else {
+            for t in &mut trees {
+                t.calc_length();
+            }
             trees
                 .into_iter()
                 .map(|t| Self::tree_to_leaptype(&t))
-                .collect::<Result<Vec<LeapType>, Position<String>>>()
+                .collect::<Result<Vec<LeapType>, ItemPosition<String>>>()
         }
     }
 
-    fn parse_start(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::Start));
-        match self.stream.get() {
-            Position(.., Token::Struct) => tree.nodes.push(self.parse_struct_def()?),
-            Position(.., Token::Enum) => tree.nodes.push(self.parse_enum_def()?),
-            p => return Err(p.replaced("Expecting `.enum` or `.struct`".to_owned())),
-        }
+    fn parse_start(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::Start, self.stream.get().0);
+        let node = match self.stream.get() {
+            ItemPosition(.., Token::Struct) => self.parse_struct_def()?,
+            ItemPosition(.., Token::Enum) => self.parse_enum_def()?,
+            p => return Err(p.replace("Expecting `.enum` or `.struct`".to_owned())),
+        };
+        tree.nodes.push(node);
         Ok(tree)
     }
 
-    fn parse_struct_def(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::StructDef));
+    fn parse_struct_def(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::StructDef, self.stream.get().0);
         if self.stream.get().1 != Token::Struct {
-            return Err(self.stream.get().replaced("Expecting `.struct`".to_owned()));
+            return Err(self.stream.get().replace("Expecting `.struct`".to_owned()));
         }
         self.stream.next();
         tree.nodes.push(self.parse_name()?);
@@ -105,22 +112,22 @@ impl Parser {
         Ok(tree)
     }
 
-    fn parse_t_args_def(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::TArgsDef));
+    fn parse_t_args_def(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::TArgsDef, self.stream.get().0);
         if self.stream.get().1 == Token::BracketLeft {
             self.stream.next();
             tree.nodes.push(self.parse_t_args()?);
             if self.stream.get().1 == Token::BracketRight {
                 self.stream.next();
             } else {
-                return Err(self.stream.get().replaced("Expecting `]`".to_owned()));
+                return Err(self.stream.get().replace("Expecting `]`".to_owned()));
             }
         }
         Ok(tree)
     }
 
-    fn parse_t_args(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::TArgs));
+    fn parse_t_args(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::TArgs, self.stream.get().0);
         tree.nodes.push(self.parse_name()?);
         if let Token::Word(_) = self.stream.get().1 {
             tree.nodes.push(self.parse_t_args()?);
@@ -128,8 +135,8 @@ impl Parser {
         Ok(tree)
     }
 
-    fn parse_props_def(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::PropsDef));
+    fn parse_props_def(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::PropsDef, self.stream.get().0);
         if let Token::Word(_) = self.stream.get().1 {
             tree.nodes.push(self.parse_prop()?);
             tree.nodes.push(self.parse_props_def()?);
@@ -137,22 +144,22 @@ impl Parser {
         Ok(tree)
     }
 
-    fn parse_prop(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::Prop));
+    fn parse_prop(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::Prop, self.stream.get().0);
         tree.nodes.push(self.parse_name()?);
         if let Token::Colon = self.stream.get().1 {
             self.stream.next();
         } else {
-            return Err(self.stream.get().replaced("Expecting `:`".to_owned()));
+            return Err(self.stream.get().replace("Expecting `:`".to_owned()));
         }
         tree.nodes.push(self.parse_ptype()?);
         Ok(tree)
     }
 
-    fn parse_enum_def(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::EnumDef));
+    fn parse_enum_def(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::EnumDef, self.stream.get().0);
         if self.stream.get().1 != Token::Enum {
-            return Err(self.stream.get().replaced("Expecting `.enum`".to_owned()));
+            return Err(self.stream.get().replace("Expecting `.enum`".to_owned()));
         }
         self.stream.next();
         tree.nodes.push(self.parse_name()?);
@@ -161,8 +168,8 @@ impl Parser {
         Ok(tree)
     }
 
-    fn parse_variants_def(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::VariantsDef));
+    fn parse_variants_def(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::VariantsDef, self.stream.get().0);
         if let Token::Word(_) = self.stream.get().1 {
             tree.nodes.push(self.parse_ptype()?);
             tree.nodes.push(self.parse_variants_def()?);
@@ -170,8 +177,8 @@ impl Parser {
         Ok(tree)
     }
 
-    fn parse_ptype(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::PType));
+    fn parse_ptype(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::PType, self.stream.get().0);
         tree.nodes.push(self.parse_name()?);
         if self.stream.get().1 == Token::BracketLeft {
             tree.nodes.push(self.parse_pt_args_block()?);
@@ -179,24 +186,25 @@ impl Parser {
         Ok(tree)
     }
 
-    fn parse_pt_args_block(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::PTArgsBlock));
+    fn parse_pt_args_block(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::PTArgsBlock, self.stream.get().0);
         if self.stream.get().1 == Token::BracketLeft {
             self.stream.next();
             tree.nodes.push(self.parse_pt_args()?);
             if self.stream.get().1 == Token::BracketRight {
+                tree.position = tree.position.extend(&self.stream.get().0);
                 self.stream.next();
             } else {
-                return Err(self.stream.get().replaced("Expecting `]`".to_owned()));
+                return Err(self.stream.get().replace("Expecting `]`".to_owned()));
             }
         } else {
-            return Err(self.stream.get().replaced("Expecting `[`".to_owned()));
+            return Err(self.stream.get().replace("Expecting `[`".to_owned()));
         }
         Ok(tree)
     }
 
-    fn parse_pt_args(&mut self) -> Result<ParseTree, Position<String>> {
-        let mut tree = ParseTree::new(self.stream.get().replaced(TreeVariant::PTArgs));
+    fn parse_pt_args(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::PTArgs, self.stream.get().0);
         tree.nodes.push(self.parse_ptype()?);
         if let Token::Word(_) = self.stream.get().1 {
             tree.nodes.push(self.parse_pt_args()?);
@@ -204,44 +212,51 @@ impl Parser {
         Ok(tree)
     }
 
-    fn parse_name(&mut self) -> Result<ParseTree, Position<String>> {
+    fn parse_name(&mut self) -> Result<ParseTree, ItemPosition<String>> {
         match self.stream.consume() {
-            Position(p, Token::Word(w)) => Ok(ParseTree {
-                variant: Position(*p, TreeVariant::Name(w.clone())),
+            ItemPosition(p, Token::Word(w)) => Ok(ParseTree {
+                variant: TreeVariant::Name(w.clone()),
+                position: *p,
                 nodes: vec![],
             }),
-            p => Err(p.replaced("Expecting name".to_owned())),
+            p => Err(p.replace("Expecting name".to_owned())),
         }
     }
 
-    fn tree_to_leaptype(tree: &ParseTree) -> Result<LeapType, Position<String>> {
+    fn tree_to_leaptype(tree: &ParseTree) -> Result<LeapType, ItemPosition<String>> {
         // tree -> Start
         let tree = &tree.nodes[0];
-        match tree.variant.1 {
+        match tree.variant {
             TreeVariant::StructDef => Ok(LeapType::Struct(Self::tree_to_struct(&tree)?)),
             TreeVariant::EnumDef => Ok(LeapType::Enum(Self::tree_to_enum(&tree)?)),
             _ => panic!("Incorrect parse tree"),
         }
     }
 
-    fn tree_to_struct(tree: &ParseTree) -> Result<LeapStruct, Position<String>> {
+    fn tree_to_struct(tree: &ParseTree) -> Result<LeapStruct, ItemPosition<String>> {
         // tree -> StructDef
         let args = if tree.nodes[1].nodes.is_empty() {
             vec![]
         } else {
             Self::tree_to_args(&tree.nodes[1].nodes[0])?
         };
-        let props = if tree.nodes[2].nodes.is_empty() {
+        let props_simple = if tree.nodes[2].nodes.is_empty() {
             vec![]
         } else {
             Self::tree_to_simple_props(&tree.nodes[2])?
         };
-        let props = props
+        let props = props_simple
             .into_iter()
-            .map(|(name, prop)| match prop.try_into_prop_type(&args) {
-                Ok(prop_type) => Ok(Prop { name, prop_type }),
-                Err(e) => Err(tree.variant.replaced(e)),
-            })
+            .map(
+                |prop_simple| match prop_simple.prop_type_simple.try_into_prop_type(&args) {
+                    Ok(prop_type) => Ok(Prop {
+                        name: prop_simple.name,
+                        prop_type,
+                        position: prop_simple.position,
+                    }),
+                    Err(e) => Err(ItemPosition(prop_simple.position, e)),
+                },
+            )
             .collect::<Result<_, _>>()?;
         Ok(LeapStruct {
             name: Self::tree_to_name(&tree.nodes[0])?,
@@ -250,7 +265,7 @@ impl Parser {
         })
     }
 
-    fn tree_to_args(tree: &ParseTree) -> Result<Vec<Name>, Position<String>> {
+    fn tree_to_args(tree: &ParseTree) -> Result<Vec<Name>, ItemPosition<String>> {
         // tree -> TArgs
         let mut args = vec![];
         let mut tree = tree;
@@ -265,7 +280,7 @@ impl Parser {
         Ok(args)
     }
 
-    fn tree_to_enum(tree: &ParseTree) -> Result<LeapEnum, Position<String>> {
+    fn tree_to_enum(tree: &ParseTree) -> Result<LeapEnum, ItemPosition<String>> {
         // tree -> EnumDef
         let args = if tree.nodes[1].nodes.is_empty() {
             vec![]
@@ -280,13 +295,18 @@ impl Parser {
         let variants = variants
             .into_iter()
             .map(|p| {
-                let name = match Name::new(p.name.clone(), p.position) {
+                let name = match Name::new(p.name.clone(), p.name_position) {
                     Ok(n) => n,
-                    Err(e) => return Err(tree.variant.replaced(e)),
+                    Err(e) => return Err(ItemPosition(tree.position, e)),
                 };
+                let position = p.position;
                 match p.try_into_prop_type(&args) {
-                    Ok(prop_type) => Ok(Prop { name, prop_type }),
-                    Err(e) => Err(tree.variant.replaced(e)),
+                    Ok(prop_type) => Ok(Prop {
+                        name,
+                        prop_type,
+                        position,
+                    }),
+                    Err(e) => Err(ItemPosition(tree.position, e)),
                 }
             })
             .collect::<Result<_, _>>()?;
@@ -297,18 +317,17 @@ impl Parser {
         })
     }
 
-    fn tree_to_simple_props(
-        tree: &ParseTree,
-    ) -> Result<Vec<(Name, PropTypeSimple)>, Position<String>> {
+    fn tree_to_simple_props(tree: &ParseTree) -> Result<Vec<PropSimple>, ItemPosition<String>> {
         // tree -> PropsDef
         let mut props = vec![];
         let mut tree = tree;
         loop {
             let prop_tree = &tree.nodes[0];
-            props.push((
-                Self::tree_to_name(&prop_tree.nodes[0])?,
-                Self::tree_to_prop_type_simple(&prop_tree.nodes[1]),
-            ));
+            props.push(PropSimple {
+                name: Self::tree_to_name(&prop_tree.nodes[0])?,
+                prop_type_simple: Self::tree_to_prop_type_simple(&prop_tree.nodes[1]),
+                position: prop_tree.position,
+            });
             tree = &tree.nodes[1];
             if tree.nodes.is_empty() {
                 break;
@@ -333,8 +352,9 @@ impl Parser {
 
     fn tree_to_prop_type_simple(tree: &ParseTree) -> PropTypeSimple {
         // tree -> PType
-        let (name, position) = if let Position(p, TreeVariant::Name(w)) = &tree.nodes[0].variant {
-            (w.clone(), *p)
+        let name_node = &tree.nodes[0];
+        let name = if let TreeVariant::Name(w) = &name_node.variant {
+            w.clone()
         } else {
             panic!("Incorrect parse tree");
         };
@@ -348,15 +368,15 @@ impl Parser {
         };
         PropTypeSimple {
             name,
+            name_position: name_node.position,
             args,
-            position,
+            position: tree.position,
         }
     }
 
     fn tree_to_ptargs(tree: &ParseTree) -> Vec<PropTypeSimple> {
         // tree -> PTArgs
-        let mut args = vec![];
-        args.push(Self::tree_to_prop_type_simple(&tree.nodes[0]));
+        let mut args = vec![Self::tree_to_prop_type_simple(&tree.nodes[0])];
         if let Some(t) = tree.nodes.get(1) {
             // t -> PTArgs
             args.append(&mut Self::tree_to_ptargs(t));
@@ -364,10 +384,10 @@ impl Parser {
         args
     }
 
-    fn tree_to_name(tree: &ParseTree) -> Result<Name, Position<String>> {
+    fn tree_to_name(tree: &ParseTree) -> Result<Name, ItemPosition<String>> {
         // tree -> Name
-        if let Position(p, TreeVariant::Name(n)) = &tree.variant {
-            Name::new(n.clone(), *p).map_err(|e| tree.variant.replaced(e))
+        if let TreeVariant::Name(n) = &tree.variant {
+            Name::new(n.clone(), tree.position).map_err(|e| ItemPosition(tree.position, e))
         } else {
             panic!("Incorrect parse tree");
         }
@@ -420,6 +440,9 @@ mod tests {
         assert!(matches!(s, LeapType::Struct(_)));
         if let LeapType::Struct(s) = s {
             assert_eq!(s.props.len(), 1);
+            let prop = &s.props[0];
+            assert_eq!(prop.position.start, 16);
+            assert_eq!(prop.position.length, 7);
         }
         let s = &Parser::parse(".struct aaa[a]\n    p1: int").unwrap()[0];
         assert!(matches!(s, LeapType::Struct(_)));
@@ -438,6 +461,12 @@ mod tests {
         assert!(matches!(s, LeapType::Struct(_)));
         if let LeapType::Struct(s) = s {
             assert_eq!(s.props.len(), 3);
+            let prop = &s.props[0];
+            assert_eq!(prop.position.start, 19);
+            assert_eq!(prop.position.length, 7);
+            let prop = &s.props[2];
+            assert_eq!(prop.position.start, 43);
+            assert_eq!(prop.position.length, 31);
         }
     }
 
@@ -476,6 +505,9 @@ mod tests {
         assert!(matches!(e, LeapType::Enum(_)));
         if let LeapType::Enum(e) = e {
             assert_eq!(e.variants.len(), 1);
+            let variant = &e.variants[0];
+            assert_eq!(variant.position.start, 39);
+            assert_eq!(variant.position.length, 6);
         }
         let e = &Parser::parse(
             "
@@ -489,14 +521,20 @@ mod tests {
         assert!(matches!(e, LeapType::Enum(_)));
         if let LeapType::Enum(e) = e {
             assert_eq!(e.variants.len(), 3);
+            let variant = &e.variants[1];
+            assert_eq!(variant.position.start, 62);
+            assert_eq!(variant.position.length, 3);
+            let variant = &e.variants[2];
+            assert_eq!(variant.position.start, 82);
+            assert_eq!(variant.position.length, 6);
         }
     }
 
     #[test]
     fn test_err_position_simple() {
         let e = Parser::parse("aaa");
-        if let Err(Position(p, _)) = e {
-            assert_eq!(p, 0);
+        if let Err(ItemPosition(p, _)) = e {
+            assert_eq!(p.start, 0);
         } else {
             panic!("expecting error");
         }
@@ -505,8 +543,8 @@ mod tests {
     #[test]
     fn test_err_position2() {
         let e = Parser::parse(".struct aaa[]");
-        if let Err(Position(p, _)) = e {
-            assert_eq!(p, 12);
+        if let Err(ItemPosition(p, _)) = e {
+            assert_eq!(p.start, 12);
         } else {
             panic!("expecting error");
         }
