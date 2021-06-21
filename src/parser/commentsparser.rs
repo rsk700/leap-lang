@@ -1,6 +1,7 @@
 use super::itemposition::ItemPosition;
 use crate::leaptypes::{Comment, CommentType};
 
+// todo: allow `/--` for comment?
 // comments parser is separte from types parser for simplicity
 pub fn parse(data: &str) -> Vec<ItemPosition<Comment>> {
     let mut comments = vec![];

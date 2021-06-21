@@ -64,10 +64,7 @@ impl TokenStream {
             }
         }
         tokens.push(ItemPosition::new(word_index, word.len(), Token::Word(word)));
-        // Adding End token, with position information, because position is not
-        // possible to figure it out from previous tokens
-        tokens.push(ItemPosition::new(data.len(), 0, Token::End));
-        tokens
+        tokens = tokens
             .into_iter()
             .filter(|t| {
                 if let ItemPosition(.., Token::Word(w)) = t {
@@ -84,7 +81,16 @@ impl TokenStream {
                 },
                 _ => t,
             })
-            .collect()
+            .collect();
+        // End token goes right after the last token, in order to show positional
+        // iformation more correctly (eg. ignore trailing spaces)
+        let end_index = if let Some(last) = tokens.last() {
+            last.0.end()
+        } else {
+            0
+        };
+        tokens.push(ItemPosition::new(end_index, 0, Token::End));
+        tokens
     }
 
     pub fn next(&mut self) {

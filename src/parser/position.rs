@@ -12,6 +12,10 @@ impl Position {
         Position { start, length }
     }
 
+    pub fn end(&self) -> usize {
+        self.start + self.length
+    }
+
     pub fn extend(&self, pos: &Self) -> Self {
         let length = max(self.length, pos.start + pos.length - self.start);
         Self {

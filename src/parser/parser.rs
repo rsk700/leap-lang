@@ -426,6 +426,8 @@ mod tests {
         assert!(matches!(simple_struct, LeapType::Struct(_)));
         if let LeapType::Struct(s) = simple_struct {
             assert_eq!(s.name.get(), "aaa");
+            assert_eq!(s.position.start, 0);
+            assert_eq!(s.position.length, 11);
         }
     }
 
@@ -435,6 +437,8 @@ mod tests {
         assert!(matches!(s, LeapType::Struct(_)));
         if let LeapType::Struct(s) = s {
             assert_eq!(s.args.len(), 1);
+            assert_eq!(s.position.start, 0);
+            assert_eq!(s.position.length, 14);
         }
         let s = &Parser::parse(".struct aaa[a b c]").unwrap()[0];
         assert!(matches!(s, LeapType::Struct(_)));
@@ -449,6 +453,8 @@ mod tests {
         assert!(matches!(s, LeapType::Struct(_)));
         if let LeapType::Struct(s) = s {
             assert_eq!(s.props.len(), 1);
+            assert_eq!(s.position.start, 0);
+            assert_eq!(s.position.length, 23);
             let prop = &s.props[0];
             assert_eq!(prop.position.start, 16);
             assert_eq!(prop.position.length, 7);
@@ -485,6 +491,16 @@ mod tests {
         assert!(matches!(simple_enum, LeapType::Enum(_)));
         if let LeapType::Enum(e) = simple_enum {
             assert_eq!(e.name.get(), "aaa");
+            assert_eq!(e.position.start, 0);
+            assert_eq!(e.position.length, 9);
+        }
+
+        let simple_enum = &Parser::parse(" .enum aaa ").unwrap()[0];
+        assert!(matches!(simple_enum, LeapType::Enum(_)));
+        if let LeapType::Enum(e) = simple_enum {
+            assert_eq!(e.name.get(), "aaa");
+            assert_eq!(e.position.start, 1);
+            assert_eq!(e.position.length, 9);
         }
     }
 
@@ -513,6 +529,8 @@ mod tests {
         .unwrap()[0];
         assert!(matches!(e, LeapType::Enum(_)));
         if let LeapType::Enum(e) = e {
+            assert_eq!(e.position.start, 13);
+            assert_eq!(e.position.length, 32);
             assert_eq!(e.variants.len(), 1);
             let variant = &e.variants[0];
             assert_eq!(variant.position.start, 39);
@@ -529,6 +547,8 @@ mod tests {
         .unwrap()[0];
         assert!(matches!(e, LeapType::Enum(_)));
         if let LeapType::Enum(e) = e {
+            assert_eq!(e.position.start, 13);
+            assert_eq!(e.position.length, 75);
             assert_eq!(e.variants.len(), 3);
             let variant = &e.variants[1];
             assert_eq!(variant.position.start, 62);
