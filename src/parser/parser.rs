@@ -6,7 +6,7 @@ use super::{
     itemposition::ItemPosition, parsetree::ParseTree, patherror::PathError,
     treevariant::TreeVariant,
 };
-use crate::leaptypes::{LeapEnum, LeapSpec, LeapStruct, LeapType, LeapTypePath, Name, Prop};
+use crate::leaptypes::{LeapEnum, LeapSpec, LeapStruct, LeapType, Name, Prop};
 use std::fs;
 
 /*
@@ -64,7 +64,10 @@ impl Parser {
             .collect::<Result<Vec<Vec<_>>, _>>()?
             .into_iter()
             .flatten()
-            .map(|v| LeapTypePath::new(v.1, v.0.to_owned()))
+            .map(|(path, mut leap_type)| {
+                leap_type.set_path(path.to_owned());
+                leap_type
+            })
             .collect();
         Ok(LeapSpec::new(types))
     }
@@ -262,6 +265,9 @@ impl Parser {
             name: Self::tree_to_name(&tree.nodes[0])?,
             args,
             props,
+            // path is unknown at this point
+            path: "".to_owned(),
+            position: tree.position,
         })
     }
 
@@ -314,6 +320,9 @@ impl Parser {
             name: Self::tree_to_name(&tree.nodes[0])?,
             args,
             variants,
+            // path is unknown at this point
+            path: "".to_owned(),
+            position: tree.position,
         })
     }
 

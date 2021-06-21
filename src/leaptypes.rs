@@ -46,6 +46,8 @@ pub struct LeapStruct {
     pub name: Name,
     pub args: Vec<Name>,
     pub props: Vec<Prop>,
+    pub path: String,
+    pub position: Position,
 }
 
 #[derive(Debug)]
@@ -53,6 +55,8 @@ pub struct LeapEnum {
     pub name: Name,
     pub args: Vec<Name>,
     pub variants: Vec<Prop>,
+    pub path: String,
+    pub position: Position,
 }
 
 // todo: info for location of type, names, props for error reporting?
@@ -63,13 +67,7 @@ pub enum LeapType {
 }
 
 #[derive(Debug)]
-pub struct LeapTypePath {
-    pub leap_type: LeapType,
-    pub path: String,
-}
-
-#[derive(Debug)]
-pub struct LeapSpec(Vec<LeapTypePath>);
+pub struct LeapSpec(Vec<LeapType>);
 
 #[derive(Debug)]
 pub struct Comment {
@@ -251,7 +249,7 @@ impl Prop {
         Ok(Self {
             name: aliased_from_aliases(&self.name, aliases)?,
             prop_type: self.prop_type.to_aliased(aliases)?,
-            position: self.position
+            position: self.position,
         })
     }
 }
@@ -292,6 +290,8 @@ impl LeapStruct {
                 .iter()
                 .map(|p| p.to_aliased(aliases))
                 .collect::<Result<_, _>>()?,
+            path: self.path.clone(),
+            position: self.position,
         })
     }
 }
@@ -332,6 +332,8 @@ impl LeapEnum {
                 .iter()
                 .map(|v| v.to_aliased(aliases))
                 .collect::<Result<_, _>>()?,
+            path: self.path.clone(),
+            position: self.position,
         })
     }
 }
@@ -366,6 +368,27 @@ impl LeapType {
             Self::Struct(s) => &s.args,
         }
     }
+
+    pub fn path(&self) -> &str {
+        match self {
+            Self::Enum(e) => &e.path,
+            Self::Struct(s) => &s.path,
+        }
+    }
+
+    pub fn set_path(&mut self, path: String) {
+        match self {
+            Self::Enum(e) => e.path = path,
+            Self::Struct(s) => s.path = path,
+        }
+    }
+
+    pub fn position(&self) -> &Position {
+        match self {
+            Self::Enum(e) => &e.position,
+            Self::Struct(s) => &s.position,
+        }
+    }
 }
 
 impl fmt::Display for LeapSpec {
@@ -383,7 +406,7 @@ impl fmt::Display for LeapSpec {
 }
 
 impl IntoIterator for LeapSpec {
-    type Item = LeapTypePath;
+    type Item = LeapType;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -392,12 +415,12 @@ impl IntoIterator for LeapSpec {
 }
 
 impl LeapSpec {
-    pub fn new(types: Vec<LeapTypePath>) -> Self {
+    pub fn new(types: Vec<LeapType>) -> Self {
         Self(types)
     }
 
     pub fn iter_types(&self) -> impl Iterator<Item = &LeapType> {
-        self.0.iter().map(|t| &t.leap_type)
+        self.0.iter()
     }
 
     pub fn to_aliased(&self, aliases: &HashMap<String, String>) -> Result<Self, String> {
@@ -407,24 +430,5 @@ impl LeapSpec {
                 .map(|t| t.to_aliased(aliases))
                 .collect::<Result<_, _>>()?,
         ))
-    }
-}
-
-impl fmt::Display for LeapTypePath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.leap_type)
-    }
-}
-
-impl LeapTypePath {
-    pub fn new(leap_type: LeapType, path: String) -> Self {
-        Self { leap_type, path }
-    }
-
-    pub fn to_aliased(&self, aliases: &HashMap<String, String>) -> Result<Self, String> {
-        Ok(Self {
-            leap_type: self.leap_type.to_aliased(aliases)?,
-            path: self.path.clone(),
-        })
     }
 }
