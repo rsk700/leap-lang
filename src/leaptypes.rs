@@ -73,14 +73,16 @@ pub struct LeapSpec(Vec<LeapType>);
 pub struct Comment {
     pub comment: String,
     pub comment_type: CommentType,
+    pub position: Position,
 }
+
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CommentType {
     // comment takes full line
     Line,
-    // comment takes full line and have empty line after comment
-    LineAndSeparator,
+    // empty line
+    Separator,
     // comment follows some code on the same line
     Trail,
 }
@@ -101,7 +103,7 @@ impl Name {
     pub fn new(name: String, position: Position) -> Result<Self, String> {
         // todo: checks
         // - min, max length?
-        // - allowed symbols?
+        // - allowed symbols? only control use of delimiter `-` (eg. can be only in the middle, no repeating)?
         // - allowed start symbol?
         // - allowed end symbol?
         Ok(Name {

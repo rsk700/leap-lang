@@ -1,60 +1,179 @@
 use crate::{
     leaptypes::{Comment, CommentType, LeapEnum, LeapStruct, LeapType, Name, PropType},
-    parser::{commentsparser::parse, parser::Parser, itemposition::ItemPosition},
+    parser::{commentsparser, parser::Parser},
 };
 
-// todo: need assign position info for parsed LeapTypes (pos + len?), assign path to LeapType?
-pub fn format(data: &str) -> Result<String, ItemPosition<String>> {
-    let types = Parser::parse(data)?;
-    let mut comments = parse(data).into_iter().peekable();
-    let mut formatted = vec![];
-    for next_type in types {
-        // loop {
-        //     if let Some(p) = comments.peek() {
-        //         if p.0 < next_type
-        //     } else {
-        //         break;
-        //     }
-        // }
-        formatted.push(format_type(&&next_type));
-    }
-    Ok(formatted.join("\n"))
+#[derive(Debug)]
+struct Block {
+    start: usize,
+    next_start: usize,
+    trail_indent: usize,
+    new_section: bool,
+    text: String,
 }
 
-fn format_type(leap_type: &LeapType) -> String {
-    match leap_type {
+// todo: new line at the end
+pub fn format(data: &str) -> Option<String> {
+    let types = Parser::parse(data).ok()?;
+    let mut formatted: Vec<Block> = vec![];
+    for next_type in &types {
+        let mut lines = format_type(next_type);
+        if !lines.is_empty() {
+            if let Some(last) = formatted.last_mut() {
+                last.next_start = lines.last().unwrap().start;
+            }
+            update_trail_indent(&mut lines);
+            formatted.append(&mut lines);
+        }
+    }
+    if let Some(last) = formatted.last_mut() {
+        last.next_start = data.len();
+    }
+    let mut comments = commentsparser::parse(data).into_iter().peekable();
+    let mut result = vec![];
+    for b in formatted {
+        while comments
+            .peek()
+            .map_or(false, |c| c.position.start < b.start)
+        {
+            let indent = if b.new_section { 0 } else { 4 };
+            result.push(format_comment(&comments.next().unwrap(), indent));
+        }
+        let has_trail_comment = comments.peek().map_or(false, |c| match c.comment_type {
+            CommentType::Trail => b.start < c.position.start && c.position.start < b.next_start,
+            _ => false,
+        });
+        if has_trail_comment {
+            let indent = b.trail_indent - b.text.len();
+            let mut text = b.text;
+            text.push_str(&format_comment(&comments.next().unwrap(), indent));
+            result.push(text);
+        } else {
+            result.push(b.text);
+        }
+    }
+    for c in comments {
+        result.push(format_comment(&c, 0));
+    }
+    // remove repeating separators and separators at the start
+    let mut new_result: Vec<String> = vec![];
+    for r in result {
+        if r.is_empty() {
+            // push only if last is not empty and array is not empty
+            let last_separator_or_empty = new_result.last().map(|s| s.is_empty()).unwrap_or(true);
+            if !last_separator_or_empty {
+                new_result.push(r)
+            }
+        } else {
+            new_result.push(r);
+        }
+    }
+    result = new_result;
+    // remove separators at the end
+    if result.last().map(|s| s.is_empty()).unwrap_or(false) {
+        result.pop();
+    }
+    Some(result.join("\n"))
+}
+
+fn update_trail_indent(lines: &mut [Block]) {
+    let max_len = lines.iter().map(|b| b.text.len()).max().unwrap_or(0);
+    let indent = (max_len / 4) * 4 + 4;
+    for b in lines {
+        b.trail_indent = indent;
+    }
+}
+
+fn format_type(leap_type: &LeapType) -> Vec<Block> {
+    let mut lines = vec![];
+    let mut type_lines = match leap_type {
         LeapType::Struct(s) => format_struct(s),
         LeapType::Enum(e) => format_enum(e),
-    }
+    };
+    lines.append(&mut type_lines);
+    lines
 }
 
-fn format_struct(leap_struct: &LeapStruct) -> String {
+fn format_struct(leap_struct: &LeapStruct) -> Vec<Block> {
     let mut lines = vec![];
-    lines.push(format!(
+    let text = format!(
         ".struct {}{}",
         leap_struct.name.get(),
         format_type_args(&leap_struct.args)
-    ));
-    for prop in &leap_struct.props {
-        lines.push(format!(
+    );
+    let next_start = if let Some(last) = leap_struct.props.last() {
+        last.position.start
+    } else {
+        leap_struct.position.end()
+    };
+    lines.push(Block {
+        start: leap_struct.position.start,
+        next_start,
+        trail_indent: 0,
+        new_section: true,
+        text,
+    });
+    for i in 0..leap_struct.props.len() {
+        let prop = &leap_struct.props[i];
+        let next_prop = leap_struct.props.get(i + 1);
+        let text = format!(
             "    {}: {}",
             prop.name.get(),
             format_prop_type(&prop.prop_type)
-        ));
+        );
+        let next_start = if let Some(next) = next_prop {
+            next.position.start
+        } else {
+            prop.position.end()
+        };
+        lines.push(Block {
+            start: prop.position.start,
+            next_start,
+            trail_indent: 0,
+            new_section: false,
+            text,
+        })
     }
-    lines.join("\n")
+    lines
 }
-fn format_enum(leap_enum: &LeapEnum) -> String {
+
+fn format_enum(leap_enum: &LeapEnum) -> Vec<Block> {
     let mut lines = vec![];
-    lines.push(format!(
+    let text = format!(
         ".enum {}{}",
         leap_enum.name.get(),
         format_type_args(&leap_enum.args)
-    ));
-    for variant in &leap_enum.variants {
-        lines.push(format!("    {}", format_prop_type(&variant.prop_type)));
+    );
+    let next_start = if let Some(last) = leap_enum.variants.last() {
+        last.position.start
+    } else {
+        leap_enum.position.end()
+    };
+    lines.push(Block {
+        start: leap_enum.position.start,
+        next_start,
+        trail_indent: 0,
+        new_section: true,
+        text,
+    });
+    for i in 0..leap_enum.variants.len() {
+        let variant = &leap_enum.variants[i];
+        let next_var = leap_enum.variants.get(i + 1);
+        let text = format!("    {}", format_prop_type(&variant.prop_type));
+        let next_start = if let Some(next) = next_var {
+            next.position.start
+        } else {
+            variant.position.end()
+        };
+        lines.push(Block {
+            start: variant.position.start,
+            next_start,
+            trail_indent: 0,
+            new_section: false,
+            text,
+        })
     }
-    lines.join("\n")
+    lines
 }
 
 fn format_type_args(args: &[Name]) -> String {
@@ -90,17 +209,40 @@ fn format_prop_type(prop_type: &PropType) -> String {
     }
 }
 
-fn format_top_comment(comment: &Comment) -> String {
+fn format_comment(comment: &Comment, indent: usize) -> String {
+    let indent = String::from_utf8(vec![b' '; indent]).unwrap();
     match comment.comment_type {
-        CommentType::Line => format!("/ {}", comment.comment),
-        CommentType::LineAndSeparator => format!("/ {}\n", comment.comment),
-        _ => panic!("unexpected top comment type"),
+        CommentType::Line | CommentType::Trail => format!("{}/ {}", indent, comment.comment),
+        CommentType::Separator => "".to_owned(),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // todo: test format formatted should produce same text
+    #[test]
+    fn test_update_trail_indent() {
+        let mut blocks = vec![Block {
+            start: 0,
+            next_start: 0,
+            trail_indent: 0,
+            new_section: false,
+            text: "aaaa".to_owned(),
+        }];
+        update_trail_indent(&mut blocks);
+        assert_eq!(blocks[0].trail_indent, 8);
+        let mut blocks = vec![Block {
+            start: 0,
+            next_start: 0,
+            trail_indent: 0,
+            new_section: false,
+            text: "aaaaaaa".to_owned(),
+        }];
+        update_trail_indent(&mut blocks);
+        assert_eq!(blocks[0].trail_indent, 8);
+    }
 
     #[test]
     fn test_format() {
@@ -121,5 +263,116 @@ mod tests {
     }
 
     #[test]
-    fn test_format_with_comments() {}
+    fn test_format_with_comments() {
+        assert_eq!(format("").unwrap(), "");
+        assert_eq!(
+            format("/ text\n.struct    s1").unwrap(),
+            "/ text\n.struct s1"
+        );
+        assert_eq!(
+            format("/ text\n\n.struct    s1").unwrap(),
+            "/ text\n\n.struct s1"
+        );
+        assert_eq!(
+            format("\n\n\n\n.struct  \n\n\n\n  s1\n\n\n\n").unwrap(),
+            ".struct s1"
+        );
+        assert_eq!(
+            format("/ text\n\n\n.struct    s1").unwrap(),
+            "/ text\n\n.struct s1"
+        );
+        assert_eq!(
+            format("/ text     \n\n\n.struct    s1").unwrap(),
+            "/ text\n\n.struct s1"
+        );
+
+        assert_eq!(format(".struct s1 / text").unwrap(), ".struct s1  / text");
+        assert_eq!(format(".enum s1 / text").unwrap(), ".enum s1    / text");
+
+        assert_eq!(format(".struct s1\n/ text").unwrap(), ".struct s1\n/ text");
+        assert_eq!(format(".enum s1\n/ text").unwrap(), ".enum s1\n/ text");
+
+        assert_eq!(
+            format(".struct s1\nv: int / text").unwrap(),
+            ".struct s1\n    v: int  / text"
+        );
+        assert_eq!(
+            format(".enum s1\nval / text").unwrap(),
+            ".enum s1\n    val     / text"
+        );
+
+        assert_eq!(
+            format(".struct s1\n/ text\nv: int").unwrap(),
+            ".struct s1\n    / text\n    v: int"
+        );
+        assert_eq!(
+            format(".enum aaaaaa\n/ text\nval").unwrap(),
+            ".enum aaaaaa\n    / text\n    val"
+        );
+
+        assert_eq!(
+            format(".struct s1\n/ text\n\n\n/ text\nv: int").unwrap(),
+            ".struct s1\n    / text\n\n    / text\n    v: int"
+        );
+    }
+
+    #[test]
+    fn test_format_complex() {
+        // return;
+        assert_eq!(
+            format(
+                "
+        / text1 text
+        / tttt2
+
+        /text3
+
+        .struct some-my-struct / text4
+        /text5
+
+        /text6
+        /text7
+        v1: list[int] /text8
+        v2: list[list[int]]
+
+        /text9
+        /text10
+
+        .enum value-enum
+
+        / test11
+
+        val1
+        val2
+
+        / text12
+        "
+            )
+            .unwrap(),
+            "/ text1 text
+/ tttt2
+
+/ text3
+
+.struct some-my-struct  / text4
+    / text5
+
+    / text6
+    / text7
+    v1: list[int]       / text8
+    v2: list[list[int]]
+
+/ text9
+/ text10
+
+.enum value-enum
+
+    / test11
+
+    val1
+    val2
+
+/ text12"
+        );
+    }
 }
