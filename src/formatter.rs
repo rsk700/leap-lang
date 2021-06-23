@@ -221,7 +221,6 @@ fn format_comment(comment: &Comment, indent: usize) -> String {
 mod tests {
     use super::*;
 
-    // todo: test format formatted should produce same text
     #[test]
     fn test_update_trail_indent() {
         let mut blocks = vec![Block {
@@ -318,10 +317,8 @@ mod tests {
 
     #[test]
     fn test_format_complex() {
-        // return;
-        assert_eq!(
-            format(
-                "
+        let formatted = format(
+            "
         / text1 text
         / tttt2
 
@@ -346,10 +343,10 @@ mod tests {
         val2
 
         / text12
-        "
-            )
-            .unwrap(),
-            "/ text1 text
+        ",
+        )
+        .unwrap();
+        let expected = "/ text1 text
 / tttt2
 
 / text3
@@ -372,7 +369,9 @@ mod tests {
     val1
     val2
 
-/ text12"
-        );
+/ text12";
+        assert_eq!(formatted, expected);
+        // if format formatted, result should be same
+        assert_eq!(format(&formatted).unwrap(), expected);
     }
 }
