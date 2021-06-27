@@ -22,6 +22,8 @@ impl PathError {
         match error_line {
             Some((l, p, line)) => {
                 let arrow_padding = String::from_utf8(vec![b' '; p]).unwrap();
+                // use 1-based indexing for line number
+                let l = l + 1;
                 format!(
                     "{}:{}:{}\n     |\n{:>4} |{}\n     |{}^---\n\n{}",
                     self.path, l, p, l, line, arrow_padding, self.error
