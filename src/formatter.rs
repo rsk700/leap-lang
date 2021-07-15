@@ -216,7 +216,7 @@ fn format_prop_type(prop_type: &PropType) -> String {
 fn format_comment(comment: &Comment, indent: usize) -> String {
     let indent = String::from_utf8(vec![b' '; indent]).unwrap();
     match comment.comment_type {
-        CommentType::Line | CommentType::Trail => format!("{}/ {}", indent, comment.comment),
+        CommentType::Line | CommentType::Trail => format!("{}/-- {}", indent, comment.comment),
         CommentType::Separator => "".to_owned(),
     }
 }
@@ -270,11 +270,27 @@ mod tests {
         assert_eq!(format("").unwrap(), "");
         assert_eq!(
             format("/ text\n.struct    s1").unwrap(),
-            "/ text\n.struct s1\n"
+            "/-- text\n.struct s1\n"
+        );
+        assert_eq!(
+            format("/- text\n.struct    s1").unwrap(),
+            "/-- text\n.struct s1\n"
+        );
+        assert_eq!(
+            format("/-- text\n.struct    s1").unwrap(),
+            "/-- text\n.struct s1\n"
+        );
+        assert_eq!(
+            format("/--- text\n.struct    s1").unwrap(),
+            "/-- - text\n.struct s1\n"
+        );
+        assert_eq!(
+            format("/-- -- text\n.struct    s1").unwrap(),
+            "/-- -- text\n.struct s1\n"
         );
         assert_eq!(
             format("/ text\n\n.struct    s1").unwrap(),
-            "/ text\n\n.struct s1\n"
+            "/-- text\n\n.struct s1\n"
         );
         assert_eq!(
             format("\n\n\n\n.struct  \n\n\n\n  s1\n\n\n\n").unwrap(),
@@ -282,43 +298,43 @@ mod tests {
         );
         assert_eq!(
             format("/ text\n\n\n.struct    s1").unwrap(),
-            "/ text\n\n.struct s1\n"
+            "/-- text\n\n.struct s1\n"
         );
         assert_eq!(
             format("/ text     \n\n\n.struct    s1").unwrap(),
-            "/ text\n\n.struct s1\n"
+            "/-- text\n\n.struct s1\n"
         );
 
-        assert_eq!(format(".struct s1 / text").unwrap(), ".struct s1  / text\n");
-        assert_eq!(format(".enum s1 / text").unwrap(), ".enum s1    / text\n");
+        assert_eq!(format(".struct s1 / text").unwrap(), ".struct s1  /-- text\n");
+        assert_eq!(format(".enum s1 / text").unwrap(), ".enum s1    /-- text\n");
 
         assert_eq!(
             format(".struct s1\n/ text").unwrap(),
-            ".struct s1\n/ text\n"
+            ".struct s1\n/-- text\n"
         );
-        assert_eq!(format(".enum s1\n/ text").unwrap(), ".enum s1\n/ text\n");
+        assert_eq!(format(".enum s1\n/ text").unwrap(), ".enum s1\n/-- text\n");
 
         assert_eq!(
             format(".struct s1\nv: int / text").unwrap(),
-            ".struct s1\n    v: int  / text\n"
+            ".struct s1\n    v: int  /-- text\n"
         );
         assert_eq!(
             format(".enum s1\nval / text").unwrap(),
-            ".enum s1\n    val     / text\n"
+            ".enum s1\n    val     /-- text\n"
         );
 
         assert_eq!(
             format(".struct s1\n/ text\nv: int").unwrap(),
-            ".struct s1\n    / text\n    v: int\n"
+            ".struct s1\n    /-- text\n    v: int\n"
         );
         assert_eq!(
             format(".enum aaaaaa\n/ text\nval").unwrap(),
-            ".enum aaaaaa\n    / text\n    val\n"
+            ".enum aaaaaa\n    /-- text\n    val\n"
         );
 
         assert_eq!(
             format(".struct s1\n/ text\n\n\n/ text\nv: int").unwrap(),
-            ".struct s1\n    / text\n\n    / text\n    v: int\n"
+            ".struct s1\n    /-- text\n\n    /-- text\n    v: int\n"
         );
     }
 
@@ -353,30 +369,30 @@ mod tests {
         ",
         )
         .unwrap();
-        let expected = "/ text1 text
-/ tttt2
+        let expected = "/-- text1 text
+/-- tttt2
 
-/ text3
+/-- text3
 
-.struct some-my-struct  / text4
-    / text5
+.struct some-my-struct  /-- text4
+    /-- text5
 
-    / text6
-    / text7
-    v1: list[int]       / text8
+    /-- text6
+    /-- text7
+    v1: list[int]       /-- text8
     v2: list[list[int]]
 
-/ text9
-/ text10
+/-- text9
+/-- text10
 
 .enum value-enum
 
-    / test11
+    /-- test11
 
     val1
     val2
 
-/ text12
+/-- text12
 ";
         assert_eq!(formatted, expected);
         // if format formatted, result should be same
