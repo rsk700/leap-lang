@@ -1,1 +1,120 @@
-Leap language parser.
+Parser for Leap language.
+
+# Leap language.
+
+Leap is a simple language for describing data structures.
+
+Supported data types:
+
+- `str` - utf-8 string
+- `int` - 64-bit integer number
+- `float` - 64-bit floating point number
+- `bool` - boolean type
+- `list` - array of values
+- `.struct` - user defined type with fields
+- `.enum` - user defined type with multiple variants
+
+## Naming
+
+All user defined names use kebab case (all letters are lower case, separated with `-`), eg.: `user-auth`, `article-title`, `some-long-long-long-name`.
+
+## List
+
+List defines array of values and accept single type argument for the type of elements:
+
+- `list[int]` - list of integers
+- `list[user]` - list of `user` structs
+- `list[list[string]]` - list of lists of strings
+
+List can be used for defining type of field in struct.
+
+## Struct
+
+Struct is a user defined type, can have zero or more fields, and can have type arguments for generict values.
+
+Example:
+
+```
+.struct user
+    name: str
+    age: int
+    address: str
+    tags: list[str]
+    active: bool
+```
+
+here `user.name` is string, and `user.tags` is list of strings
+
+Empty struct with no fields:
+
+```
+.struct none
+```
+
+Struct with type argument:
+
+```
+.struct some[t]
+    value: t
+```
+
+here `t` is a type argument, and if it will be applied as `str`, `value` will become `str`
+
+## Enum
+
+Enum is a user defined type, which describes which variants it can be, only structs can be variants of enum, enum can have type arguments.
+
+Example:
+
+```
+.enum response
+    user
+    none
+```
+
+here `response` can be either `user` or `none` struct
+
+Enum with type argument:
+
+```
+.enum option[t]
+    some[t]
+    none
+```
+
+here `t` is a type argument, and if it will applied as `int`, `some[t]` variant will become `some[int]`
+
+## Type arguments
+
+Types can have type arguments for generic values. If there is multiple type arguments, they separated with spaces:
+
+```
+.struct some-struct[a b c]
+    value-a: a
+    value-b: b
+    value-c: c
+    value-d: other-struct[a b list[c]]
+    value-e: some[int]
+```
+
+here `a`, `b`, `c` is type arguments, which should be applied in order to use type, for example `some-struct[int int str]`, in this case `value-a` will have `int` type, and `value-d` will have `other-struct[int int list[str]]` type. `value-e` have type `some[int]`, which is `some[t]` with `t` applied as `int`.
+
+## Comments
+
+Comments start with `/--` and can be placed on separate line, or at the end of the line:
+
+```
+/-- some comment about page struct
+.struct page[t]
+    items: list[t] /-- other comment about items of page
+    /-- comment about page additional info
+    total-count: int
+```
+
+# Example
+
+todo: big example with different types
+
+# Example usage
+
+todo: example of library usage (parsing string)
