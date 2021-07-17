@@ -16,7 +16,10 @@ Supported data types:
 
 ## Naming
 
-All user defined names use kebab case (all letters are lower case, separated with `-`), eg.: `user-auth`, `article-title`, `some-long-long-long-name`.
+All user defined names use kebab case (all letters are lower case, separated with `-`), eg.: `user-auth`, `article-title`, `some-long-long-long-name`:
+
+* name should start with letter and can contain numbers
+* words in name separated with single `-`
 
 ## List
 
