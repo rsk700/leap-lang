@@ -2,7 +2,7 @@ Parser for Leap language.
 
 # Leap language.
 
-Leap is a simple language for describing data structures.
+Leap is a light, simple language for describing data structures.
 
 Supported data types:
 
@@ -113,8 +113,82 @@ Comments start with `/--` and can be placed on separate line, or at the end of t
 
 # Example
 
-todo: big example with different types
+Lets model types which can be used for REST API of blog engine:
+
+```
+/-- general types
+.struct none
+
+.struct some[t]
+    value: t
+
+.enum option[t]
+    none
+    some[t]
+
+.struct ok[t]
+    value: t
+
+.struct err[e]
+    value: e
+
+.enum result[t e]
+    ok[t]
+    err[e]
+
+/-- api types
+.struct page[t]
+    value: t
+    total-count: option[int]
+
+.struct user
+    id: int
+    name: str
+    email: str
+
+.struct article
+    id: int
+    author: user
+    title: str
+    text: str
+    tags: list[str]
+```
+
+here for our api:
+
+* for every request api returns `result[t str]`, `t` for correct response or `str` for error (string with error message)
+* `GET /users/7` will return `user` (wrapped into `result`)
+* `GET /articles` will return `page[article]` (wrapped into `result`)
+* `page.total-count` is optional, if `total-count` is unknown it will be equal to `none`, otherwise `some[int]`
 
 # Example usage
 
-todo: example of library usage (parsing string)
+Cargo.toml
+
+```toml
+[dependencies]
+leap-lang = "0.1"
+```
+
+main.rs
+
+```rust
+use leap_lang::parser::parser::Parser;
+
+fn main() {
+    let types = Parser::parse("
+        .enum enum1
+        .struct struct1
+        .struct struct2
+            v1: int
+    ").unwrap();
+    for t in types {
+        println!("name: {}", t.name());
+    }
+    // output:
+    //
+    // name: enum1
+    // name: struct1
+    // name: struct2
+}
+```
