@@ -1,5 +1,7 @@
 Parser for Leap language.
 
+* [Command line tool](https://github.com/rsk700/leap-cli)
+
 # Leap language.
 
 Leap is a light, simple language for describing data structures.
