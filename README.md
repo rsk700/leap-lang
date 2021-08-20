@@ -33,8 +33,6 @@ List defines array of values and accept single type argument for the type of ele
 - `list[user]` - list of `user` structs
 - `list[list[string]]` - list of lists of strings
 
-List can be used for defining type of field in struct.
-
 ## Struct
 
 Struct is a user defined type, can have zero or more fields, and can have type arguments for generict values.
