@@ -9,6 +9,7 @@ use crate::naming;
 use crate::parser::position::Position;
 use std::collections::HashMap;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 
 // todo: trait Name to String
 #[derive(Debug, Clone)]
@@ -26,6 +27,7 @@ pub enum SimpleType {
     Boolean,
 }
 
+// todo: rename ValueType?
 #[derive(Debug, Clone)]
 pub enum PropType {
     Simple(SimpleType),
@@ -76,7 +78,6 @@ pub struct Comment {
     pub position: Position,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CommentType {
     // comment takes full line
@@ -87,16 +88,8 @@ pub enum CommentType {
     Trail,
 }
 
-fn get_alias_of_name(name: &Name, aliases: &HashMap<String, String>) -> Option<String> {
-    if let Some(a) = aliases.get(name.get()) {
-        Some(a.clone())
-    } else {
-        None
-    }
-}
-
 fn aliased_from_aliases(name: &Name, aliases: &HashMap<String, String>) -> Result<Name, String> {
-    name.to_aliased_if_some(get_alias_of_name(name, aliases))
+    name.to_aliased_if_some(aliases.get(name.get()).cloned())
 }
 
 impl Name {
@@ -175,6 +168,14 @@ impl PartialEq for Name {
     }
 }
 
+impl Eq for Name {}
+
+impl Hash for Name {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+    }
+}
+
 impl SimpleType {
     pub fn name(&self) -> String {
         match self {
@@ -238,6 +239,18 @@ impl PropType {
             Self::LeapType { name, .. } => name.get().to_owned(),
         }
     }
+
+    pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
+        match self {
+            Self::Simple(_) => self.clone(),
+            Self::List(t) => Self::List(Box::new(t.apply_args(applied_args))),
+            Self::TypeArg(name) => (*applied_args.get(name).unwrap()).clone(),
+            Self::LeapType { name, args } => Self::LeapType {
+                name: name.clone(),
+                args: args.iter().map(|a| a.apply_args(applied_args)).collect(),
+            },
+        }
+    }
 }
 
 impl fmt::Display for Prop {
@@ -253,6 +266,14 @@ impl Prop {
             prop_type: self.prop_type.to_aliased(aliases)?,
             position: self.position,
         })
+    }
+
+    pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
+        Self {
+            name: self.name.clone(),
+            prop_type: self.prop_type.apply_args(applied_args),
+            position: self.position,
+        }
     }
 }
 
@@ -295,6 +316,30 @@ impl LeapStruct {
             path: self.path.clone(),
             position: self.position,
         })
+    }
+
+    pub fn map_args<'a>(&'a self, applied_args: &[&'a PropType]) -> HashMap<&Name, &PropType> {
+        let mut args_map = HashMap::new();
+        for (i, name) in self.args.iter().enumerate() {
+            // applied_args should have same length as self.args
+            args_map.insert(name, applied_args[i]);
+        }
+        args_map
+    }
+
+    pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
+        Self {
+            name: self.name.clone(),
+            // as type args was applied there is no type args any more
+            args: vec![],
+            props: self
+                .props
+                .iter()
+                .map(|p| p.apply_args(applied_args))
+                .collect(),
+            path: self.path.clone(),
+            position: self.position,
+        }
     }
 }
 
