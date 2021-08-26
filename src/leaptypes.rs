@@ -318,11 +318,11 @@ impl LeapStruct {
         })
     }
 
-    pub fn map_args<'a>(&'a self, applied_args: &[&'a PropType]) -> HashMap<&Name, &PropType> {
+    pub fn map_args<'a>(&'a self, applied_args: &'a [PropType]) -> HashMap<&Name, &PropType> {
         let mut args_map = HashMap::new();
         for (i, name) in self.args.iter().enumerate() {
             // applied_args should have same length as self.args
-            args_map.insert(name, applied_args[i]);
+            args_map.insert(name, &applied_args[i]);
         }
         args_map
     }
