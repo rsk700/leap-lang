@@ -61,7 +61,6 @@ pub struct LeapEnum {
     pub position: Position,
 }
 
-// todo: info for location of type, names, props for error reporting?
 #[derive(Debug)]
 pub enum LeapType {
     Struct(LeapStruct),
