@@ -36,6 +36,7 @@ pub enum PropType {
     LeapType { name: Name, args: Vec<PropType> },
 }
 
+// todo: rename -> Property
 #[derive(Debug)]
 pub struct Prop {
     pub name: Name,
@@ -340,6 +341,13 @@ impl LeapStruct {
             position: self.position,
         }
     }
+
+    pub fn expand_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Vec<PropType> {
+        self.args
+            .iter()
+            .map(|a| (*applied_args.get(a).unwrap()).clone())
+            .collect()
+    }
 }
 
 impl fmt::Display for LeapEnum {
@@ -381,6 +389,13 @@ impl LeapEnum {
             path: self.path.clone(),
             position: self.position,
         })
+    }
+
+    pub fn expand_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Vec<PropType> {
+        self.args
+            .iter()
+            .map(|a| (*applied_args.get(a).unwrap()).clone())
+            .collect()
     }
 }
 
@@ -433,6 +448,13 @@ impl LeapType {
         match self {
             Self::Enum(e) => &e.position,
             Self::Struct(s) => &s.position,
+        }
+    }
+
+    pub fn expand_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Vec<PropType> {
+        match self {
+            Self::Enum(e) => e.expand_args(applied_args),
+            Self::Struct(s) => s.expand_args(applied_args),
         }
     }
 }
