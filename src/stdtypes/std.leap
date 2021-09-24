@@ -1,0 +1,18 @@
+.struct none
+
+.struct some[t]
+    value: t
+
+.enum option[t]
+    none
+    some[t]
+
+.struct ok[t]
+    value: t
+
+.struct err[e]
+    value: e
+
+.enum result[t e]
+    ok[t]
+    err[e]
