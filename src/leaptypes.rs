@@ -491,6 +491,11 @@ impl LeapSpec {
         self.0.iter()
     }
 
+    pub fn join(&mut self, other: LeapSpec) {
+        let mut other  = other;
+        self.0.append(&mut other.0);
+    }
+
     pub fn to_aliased(&self, aliases: &HashMap<String, String>) -> Result<Self, String> {
         Ok(Self(
             self.0
