@@ -6,7 +6,7 @@ license = "MIT"
 description = "Leap language parser"
 repository = "https://github.com/rsk700/leap-lang"
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 keywords = ["parser", "lang", "language"]
 categories = ["parsing"]
