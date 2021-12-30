@@ -135,24 +135,8 @@ impl Name {
         }
     }
 
-    pub fn snake_case(&self) -> String {
-        naming::snake_case(&naming::get_parts(&self.get_aliased()))
-    }
-
-    pub fn upper_camel_case(&self) -> String {
-        naming::upper_camel_case(&naming::get_parts(&self.get_aliased()))
-    }
-
-    pub fn camel_case(&self) -> String {
-        naming::camel_case(&naming::get_parts(&self.get_aliased()))
-    }
-
-    pub fn joined(&self) -> String {
-        naming::joined(&naming::get_parts(&self.get_aliased()))
-    }
-
-    pub fn uppercase_joined(&self) -> String {
-        naming::uppercase_joined(&naming::get_parts(&self.get_aliased()))
+    pub fn apply_style(&self, style: naming::WritingStyle, separator: &str) -> String {
+        naming::apply_style(style, separator, &naming::get_parts(self.get_aliased()))
     }
 }
 
@@ -492,7 +476,7 @@ impl LeapSpec {
     }
 
     pub fn join(&mut self, other: LeapSpec) {
-        let mut other  = other;
+        let mut other = other;
         self.0.append(&mut other.0);
     }
 
