@@ -15,8 +15,8 @@ Supported data types:
 - `float` - 64-bit floating point number
 - `bool` - boolean type
 - `list` - array of values
-- `.struct` - user defined type with fields
-- `.enum` - user defined type with multiple variants
+- `struct` - user defined type with fields
+- `enum` - user defined type with multiple variants
 
 ## Naming
 
