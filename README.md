@@ -162,8 +162,8 @@ Lets model types which can be used for REST API of blog engine:
 here for our api:
 
 * for every request api returns `result[t str]`, `t` for correct response or `str` for error (string with error message)
-* `GET /users/7` will return `user` (wrapped into `result`)
-* `GET /articles` will return `page[article]` (wrapped into `result`)
+* `GET /users/7` will return `result[user str]`, which allows to get info about user by id on success or error message
+* `GET /articles` will return `result[page[article] str]`, which allows to get paged list of articles on success or error message
 * `page.total-count` is optional, if `total-count` is unknown it will be equal to `none`, otherwise `some[int]`
 
 # Example usage
