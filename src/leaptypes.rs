@@ -585,6 +585,22 @@ impl LeapSpec {
         self.name_to_type.get(name).copied()
     }
 
+    pub fn is_struct_name(&self, name: &str) -> bool {
+        if let Some(h) = self.get_type_by_name(name) {
+            self.get_type_ref(h).is_struct()
+        } else {
+            false
+        }
+    }
+
+    pub fn is_enum_name(&self, name: &str) -> bool {
+        if let Some(h) = self.get_type_by_name(name) {
+            self.get_type_ref(h).is_enum()
+        } else {
+            false
+        }
+    }
+
     pub fn apply_args(&self, handle: LeapTypeHandle, args: &[PropType]) -> LeapType {
         self.get_type_ref(handle).apply_args(args)
     }

@@ -1,6 +1,6 @@
 [package]
 name = "leap-lang"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Roman Kudryavtsev <rskbox@gmail.com>"]
 license = "MIT"
 description = "Leap language parser"
