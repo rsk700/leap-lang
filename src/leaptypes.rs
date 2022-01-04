@@ -451,6 +451,14 @@ impl LeapType {
         }
     }
 
+    pub fn is_struct(&self) -> bool {
+        matches!(self, LeapType::Struct(_))
+    }
+
+    pub fn is_enum(&self) -> bool {
+        matches!(self, LeapType::Enum(_))
+    }
+
     pub fn to_aliased(&self, aliases: &HashMap<String, String>) -> Result<Self, String> {
         Ok(match self {
             Self::Struct(s) => Self::Struct(s.to_aliased(aliases)?),
