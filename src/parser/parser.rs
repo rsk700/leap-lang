@@ -256,6 +256,8 @@ impl Parser {
                         name: prop_simple.name,
                         prop_type,
                         position: prop_simple.position,
+                        // it is unknown curerntly if property is recursive
+                        is_recursive: false,
                     }),
                     Err(e) => Err(ItemPosition(prop_simple.position, e)),
                 },
@@ -311,6 +313,8 @@ impl Parser {
                         name,
                         prop_type,
                         position,
+                        // it is unknown curerntly if property is recursive
+                        is_recursive: false,
                     }),
                     Err(e) => Err(ItemPosition(tree.position, e)),
                 }

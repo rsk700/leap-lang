@@ -5,6 +5,7 @@
 // todo: checks - enum variants should have unique names (eg. if need multiple variants of same type wrap in struct first)
 // todo: only allow structs to be variants of enum
 // todo: checks - type args should be unique relative to struct and enum names, same type arg names can be used in different types
+use crate::handle::Handle;
 use crate::naming;
 use crate::parser::position::Position;
 use std::collections::HashMap;
@@ -19,7 +20,7 @@ pub struct Name {
     pub position: Position,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SimpleType {
     String,
     Integer,
@@ -28,7 +29,7 @@ pub enum SimpleType {
 }
 
 // todo: rename ValueType?
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PropType {
     Simple(SimpleType),
     List(Box<PropType>),
@@ -42,6 +43,7 @@ pub struct Prop {
     pub name: Name,
     pub prop_type: PropType,
     pub position: Position,
+    pub is_recursive: bool,
 }
 
 #[derive(Debug)]
@@ -68,8 +70,13 @@ pub enum LeapType {
     Enum(LeapEnum),
 }
 
+pub type LeapTypeHandle = Handle<LeapType>;
+
 #[derive(Debug)]
-pub struct LeapSpec(Vec<LeapType>);
+pub struct LeapSpec {
+    types: Vec<LeapType>,
+    name_to_type: HashMap<String, LeapTypeHandle>,
+}
 
 #[derive(Debug)]
 pub struct Comment {
@@ -224,6 +231,14 @@ impl PropType {
         }
     }
 
+    pub fn args(&self) -> Vec<PropType> {
+        match self {
+            Self::Simple(_) | Self::TypeArg(_) => vec![],
+            Self::List(t) => vec![t.as_ref().clone()],
+            Self::LeapType { args, .. } => args.clone(),
+        }
+    }
+
     pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
         match self {
             Self::Simple(_) => self.clone(),
@@ -249,6 +264,7 @@ impl Prop {
             name: aliased_from_aliases(&self.name, aliases)?,
             prop_type: self.prop_type.to_aliased(aliases)?,
             position: self.position,
+            is_recursive: self.is_recursive,
         })
     }
 
@@ -257,6 +273,7 @@ impl Prop {
             name: self.name.clone(),
             prop_type: self.prop_type.apply_args(applied_args),
             position: self.position,
+            is_recursive: self.is_recursive,
         }
     }
 }
@@ -381,6 +398,30 @@ impl LeapEnum {
             .map(|a| (*applied_args.get(a).unwrap()).clone())
             .collect()
     }
+
+    pub fn map_args<'a>(&'a self, applied_args: &'a [PropType]) -> HashMap<&Name, &PropType> {
+        let mut args_map = HashMap::new();
+        for (i, name) in self.args.iter().enumerate() {
+            // applied_args should have same length as self.args
+            args_map.insert(name, &applied_args[i]);
+        }
+        args_map
+    }
+
+    pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
+        Self {
+            name: self.name.clone(),
+            // as type args was applied there is no type args any more
+            args: vec![],
+            variants: self
+                .variants
+                .iter()
+                .map(|v| v.apply_args(applied_args))
+                .collect(),
+            path: self.path.clone(),
+            position: self.position,
+        }
+    }
 }
 
 impl fmt::Display for LeapType {
@@ -393,6 +434,22 @@ impl fmt::Display for LeapType {
 }
 
 impl LeapType {
+    pub fn unwrap_struct_ref(&self) -> &LeapStruct {
+        if let LeapType::Struct(s) = self {
+            s
+        } else {
+            panic!("not a struct variant")
+        }
+    }
+
+    pub fn unwrap_enum_ref(&self) -> &LeapEnum {
+        if let LeapType::Enum(e) = self {
+            e
+        } else {
+            panic!("not an enum variant")
+        }
+    }
+
     pub fn to_aliased(&self, aliases: &HashMap<String, String>) -> Result<Self, String> {
         Ok(match self {
             Self::Struct(s) => Self::Struct(s.to_aliased(aliases)?),
@@ -441,6 +498,21 @@ impl LeapType {
             Self::Struct(s) => s.expand_args(applied_args),
         }
     }
+
+    // todo: remove?
+    pub fn map_args<'a>(&'a self, applied_args: &'a [PropType]) -> HashMap<&Name, &PropType> {
+        match self {
+            LeapType::Struct(s) => s.map_args(applied_args),
+            LeapType::Enum(e) => e.map_args(applied_args),
+        }
+    }
+
+    pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
+        match self {
+            LeapType::Struct(s) => LeapType::Struct(s.apply_args(applied_args)),
+            LeapType::Enum(e) => LeapType::Enum(e.apply_args(applied_args)),
+        }
+    }
 }
 
 impl fmt::Display for LeapSpec {
@@ -448,7 +520,7 @@ impl fmt::Display for LeapSpec {
         write!(
             f,
             "Spec({})",
-            self.0
+            self.types
                 .iter()
                 .map(|t| format!("{}", t))
                 .collect::<Vec<_>>()
@@ -462,30 +534,63 @@ impl IntoIterator for LeapSpec {
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.types.into_iter()
     }
 }
 
 impl LeapSpec {
     pub fn new(types: Vec<LeapType>) -> Self {
-        Self(types)
+        let mut spec = Self {
+            types: vec![],
+            name_to_type: HashMap::new(),
+        };
+        for leap_type in types.into_iter() {
+            spec.push_type(leap_type);
+        }
+        spec
+    }
+
+    fn push_type(&mut self, leap_type: LeapType) {
+        let name = leap_type.name().get().to_owned();
+        self.types.push(leap_type);
+        self.name_to_type
+            .insert(name, LeapTypeHandle::new((self.types.len() - 1) as u32));
     }
 
     pub fn iter_types(&self) -> impl Iterator<Item = &LeapType> {
-        self.0.iter()
+        self.types.iter()
     }
 
     pub fn join(&mut self, other: LeapSpec) {
-        let mut other = other;
-        self.0.append(&mut other.0);
+        // todo: consume self, and return new spec? so new spec always created with `new`
+        for leap_type in other.into_iter() {
+            self.push_type(leap_type);
+        }
+    }
+
+    pub fn get_type_ref(&self, handle: LeapTypeHandle) -> &LeapType {
+        &self.types[handle.as_index()]
+    }
+
+    pub fn get_type_by_name(&self, name: &str) -> Option<LeapTypeHandle> {
+        self.name_to_type.get(name).copied()
+    }
+
+    pub fn apply_args(&self, handle: LeapTypeHandle, applied_args: &[PropType]) -> LeapType {
+        let args_map = self.get_type_ref(handle).map_args(applied_args);
+        self.get_type_ref(handle).apply_args(&args_map)
     }
 
     pub fn to_aliased(&self, aliases: &HashMap<String, String>) -> Result<Self, String> {
-        Ok(Self(
-            self.0
+        Ok(Self::new(
+            self.types
                 .iter()
                 .map(|t| t.to_aliased(aliases))
                 .collect::<Result<_, _>>()?,
         ))
+    }
+
+    pub fn mark_recursive_props(&mut self) {
+        todo!()
     }
 }
