@@ -499,18 +499,10 @@ impl LeapType {
         }
     }
 
-    // todo: remove?
-    pub fn map_args<'a>(&'a self, applied_args: &'a [PropType]) -> HashMap<&Name, &PropType> {
+    pub fn apply_args(&self, args: &[PropType]) -> Self {
         match self {
-            LeapType::Struct(s) => s.map_args(applied_args),
-            LeapType::Enum(e) => e.map_args(applied_args),
-        }
-    }
-
-    pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
-        match self {
-            LeapType::Struct(s) => LeapType::Struct(s.apply_args(applied_args)),
-            LeapType::Enum(e) => LeapType::Enum(e.apply_args(applied_args)),
+            LeapType::Struct(s) => LeapType::Struct(s.apply_args(&s.map_args(args))),
+            LeapType::Enum(e) => LeapType::Enum(e.apply_args(&e.map_args(args))),
         }
     }
 }
@@ -576,9 +568,8 @@ impl LeapSpec {
         self.name_to_type.get(name).copied()
     }
 
-    pub fn apply_args(&self, handle: LeapTypeHandle, applied_args: &[PropType]) -> LeapType {
-        let args_map = self.get_type_ref(handle).map_args(applied_args);
-        self.get_type_ref(handle).apply_args(&args_map)
+    pub fn apply_args(&self, handle: LeapTypeHandle, args: &[PropType]) -> LeapType {
+        self.get_type_ref(handle).apply_args(args)
     }
 
     pub fn to_aliased(&self, aliases: &HashMap<String, String>) -> Result<Self, String> {
