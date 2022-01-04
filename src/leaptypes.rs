@@ -8,6 +8,7 @@
 use crate::handle::Handle;
 use crate::naming;
 use crate::parser::position::Position;
+use crate::prop_recursion_check::PropRecursionCheck;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -549,8 +550,12 @@ impl LeapSpec {
             .insert(name, LeapTypeHandle::new((self.types.len() - 1) as u32));
     }
 
-    pub fn iter_types(&self) -> impl Iterator<Item = &LeapType> {
+    pub fn iter_type_refs(&self) -> impl Iterator<Item = &LeapType> {
         self.types.iter()
+    }
+
+    pub fn iter_types(&self) -> impl Iterator<Item = LeapTypeHandle> {
+        (0..self.types.len()).map(|i| LeapTypeHandle::new(i as u32))
     }
 
     pub fn join(&mut self, other: LeapSpec) {
@@ -562,6 +567,10 @@ impl LeapSpec {
 
     pub fn get_type_ref(&self, handle: LeapTypeHandle) -> &LeapType {
         &self.types[handle.as_index()]
+    }
+
+    pub fn get_type_mut(&mut self, handle: LeapTypeHandle) -> &mut LeapType {
+        &mut self.types[handle.as_index()]
     }
 
     pub fn get_type_by_name(&self, name: &str) -> Option<LeapTypeHandle> {
@@ -582,6 +591,62 @@ impl LeapSpec {
     }
 
     pub fn mark_recursive_props(&mut self) {
-        todo!()
+        for h in self.iter_types() {
+            let mut recursive_props = vec![];
+            let t = self.get_type_ref(h);
+            match t {
+                LeapType::Struct(s) => {
+                    for (i, p) in s.props.iter().enumerate() {
+                        if PropRecursionCheck::is_recursive(self, t, p) {
+                            recursive_props.push(i);
+                        }
+                    }
+                }
+                LeapType::Enum(e) => {
+                    for (i, v) in e.variants.iter().enumerate() {
+                        if PropRecursionCheck::is_recursive(self, t, v) {
+                            recursive_props.push(i);
+                        }
+                    }
+                }
+            }
+            if !recursive_props.is_empty() {
+                let props = match self.get_type_mut(h) {
+                    LeapType::Struct(s) => &mut s.props,
+                    LeapType::Enum(e) => &mut e.variants,
+                };
+                for i in recursive_props {
+                    props[i].is_recursive = true;
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::parser::parser::Parser;
+
+    use super::*;
+
+    #[test]
+    fn test_simple() {
+        let spec_text = "
+            .struct s1
+                a: s2
+                b: s3
+
+            .struct s2
+                a: s1
+
+            .struct s3
+                a: str
+        ";
+        let mut spec = LeapSpec::new(Parser::parse(spec_text).unwrap());
+        spec.mark_recursive_props();
+        let h = spec.get_type_by_name("s1").unwrap();
+        let s = spec.get_type_ref(h).unwrap_struct_ref();
+        assert!(s.props[0].is_recursive);
+        assert!(!s.props[1].is_recursive);
     }
 }
