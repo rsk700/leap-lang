@@ -83,7 +83,7 @@ impl TokenStream {
             })
             .collect();
         // End token goes right after the last token, in order to show positional
-        // iformation more correctly (eg. ignore trailing spaces)
+        // information more correctly (eg. ignore trailing spaces)
         let end_index = if let Some(last) = tokens.last() {
             last.0.end()
         } else {
