@@ -79,6 +79,16 @@ Example:
 
 here `response` can be either `user` or `none` struct
 
+Variants can be named:
+
+```
+.enum account
+    admin: user
+    customer: user
+```
+
+here variant names allow to avoid name conflict, as both variants `admin` and `customer` use same type `user`.
+
 Enum with type argument:
 
 ```
