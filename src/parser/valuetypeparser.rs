@@ -130,7 +130,6 @@ impl ValueTypeParser {
         };
         PropTypeSimple {
             name,
-            name_position: name_node.position,
             args,
             position: tree.position,
         }

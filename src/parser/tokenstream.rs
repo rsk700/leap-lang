@@ -106,6 +106,10 @@ impl TokenStream {
         self.get_by_index(self.cursor)
     }
 
+    pub fn get_next(&self) -> &ItemPosition<Token> {
+        self.get_by_index(self.cursor + 1)
+    }
+
     pub fn get_by_index(&self, i: usize) -> &ItemPosition<Token> {
         self.tokens.get(i).unwrap_or_else(|| self.get_end())
     }

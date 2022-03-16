@@ -101,6 +101,7 @@ fn aliased_from_aliases(name: &Name, aliases: &HashMap<String, String>) -> Resul
 }
 
 impl Name {
+    // todo: accept any name here? check names later, to simplify parsing (name can return error in parsing code)
     pub fn new(name: String, position: Position) -> Result<Self, String> {
         // todo: checks
         // - min, max length?

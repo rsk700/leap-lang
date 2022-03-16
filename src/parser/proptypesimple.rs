@@ -5,7 +5,6 @@ use super::position::Position;
 #[derive(Debug)]
 pub struct PropTypeSimple {
     pub name: String,
-    pub name_position: Position,
     pub args: Vec<PropTypeSimple>,
     pub position: Position,
 }
@@ -50,7 +49,7 @@ impl PropTypeSimple {
                 }
             }
             name => {
-                let name = Name::new(name.to_owned(), self.name_position)?;
+                let name = Name::new(name.to_owned(), self.position)?;
                 if type_args.contains(&name) {
                     if self.args.is_empty() {
                         Ok(PropType::TypeArg(name))

@@ -22,7 +22,8 @@ use std::fs;
     PROP                := NAME COLON PTYPE
 
     ENUM_DEF            := ENUM NAME T_ARGS_DEF VARIANTS_DEF
-    VARIANTS_DEF        := PTYPE VARIANTS_DEF | e
+    VARIANTS_DEF        := VARIANT VARIANTS_DEF | e
+    VARIANT             := PROP | PTYPE
 
     PTYPE               := NAME | NAME PT_ARGS_BLOCK
     PT_ARGS_BLOCK       := [ PT_ARGS ]
@@ -174,8 +175,18 @@ impl Parser {
     fn parse_variants_def(&mut self) -> Result<ParseTree, ItemPosition<String>> {
         let mut tree = ParseTree::new(TreeVariant::VariantsDef, self.stream.get().0);
         if let Token::Word(_) = self.stream.get().1 {
-            tree.nodes.push(self.parse_ptype()?);
+            tree.nodes.push(self.parse_variant()?);
             tree.nodes.push(self.parse_variants_def()?);
+        }
+        Ok(tree)
+    }
+
+    fn parse_variant(&mut self) -> Result<ParseTree, ItemPosition<String>> {
+        let mut tree = ParseTree::new(TreeVariant::Variant, self.stream.get().0);
+        if self.stream.get_next().1 == Token::Colon {
+            tree.nodes.push(self.parse_prop()?);
+        } else {
+            tree.nodes.push(self.parse_ptype()?);
         }
         Ok(tree)
     }
@@ -298,19 +309,15 @@ impl Parser {
         let variants = if tree.nodes[2].nodes.is_empty() {
             vec![]
         } else {
-            Self::tree_to_simple_variants(&tree.nodes[2])
+            Self::tree_to_simple_variants(&tree.nodes[2])?
         };
         let variants = variants
             .into_iter()
             .map(|p| {
-                let name = match Name::new(p.name.clone(), p.name_position) {
-                    Ok(n) => n,
-                    Err(e) => return Err(ItemPosition(tree.position, e)),
-                };
                 let position = p.position;
-                match p.try_into_prop_type(&args) {
+                match p.prop_type_simple.try_into_prop_type(&args) {
                     Ok(prop_type) => Ok(Prop {
-                        name,
+                        name: p.name,
                         prop_type,
                         position,
                         // it is unknown curerntly if property is recursive
@@ -336,11 +343,7 @@ impl Parser {
         let mut tree = tree;
         loop {
             let prop_tree = &tree.nodes[0];
-            props.push(PropSimple {
-                name: Self::tree_to_name(&prop_tree.nodes[0])?,
-                prop_type_simple: Self::tree_to_prop_type_simple(&prop_tree.nodes[1]),
-                position: prop_tree.position,
-            });
+            props.push(Self::tree_to_simple_prop(prop_tree)?);
             tree = &tree.nodes[1];
             if tree.nodes.is_empty() {
                 break;
@@ -349,18 +352,36 @@ impl Parser {
         Ok(props)
     }
 
-    fn tree_to_simple_variants(tree: &ParseTree) -> Vec<PropTypeSimple> {
+    fn tree_to_simple_prop(tree: &ParseTree) -> Result<PropSimple, ItemPosition<String>> {
+        // tree -> Prop
+        Ok(PropSimple {
+            name: Self::tree_to_name(&tree.nodes[0])?,
+            prop_type_simple: Self::tree_to_prop_type_simple(&tree.nodes[1]),
+            position: tree.position,
+        })
+    }
+
+    fn tree_to_simple_variants(tree: &ParseTree) -> Result<Vec<PropSimple>, ItemPosition<String>> {
         // tree -> VariantsDef
         let mut variants = vec![];
         let mut tree = tree;
         loop {
-            variants.push(Self::tree_to_prop_type_simple(&tree.nodes[0]));
+            let variant_tree = &tree.nodes[0].nodes[0];
+            match variant_tree.variant {
+                TreeVariant::Prop => variants.push(Self::tree_to_simple_prop(variant_tree)?),
+                TreeVariant::PType => variants.push(PropSimple {
+                    name: Self::tree_to_name(&variant_tree.nodes[0])?,
+                    prop_type_simple: Self::tree_to_prop_type_simple(variant_tree),
+                    position: variant_tree.position,
+                }),
+                _ => panic!("Incorrect parse tree"),
+            }
             tree = &tree.nodes[1];
             if tree.nodes.is_empty() {
                 break;
             }
         }
-        variants
+        Ok(variants)
     }
 
     fn tree_to_prop_type_simple(tree: &ParseTree) -> PropTypeSimple {
@@ -381,7 +402,6 @@ impl Parser {
         };
         PropTypeSimple {
             name,
-            name_position: name_node.position,
             args,
             position: tree.position,
         }
@@ -411,6 +431,7 @@ impl Parser {
 mod tests {
 
     use super::*;
+    use crate::leaptypes::PropType;
 
     #[test]
     fn test_empty_spec() {
@@ -540,26 +561,58 @@ mod tests {
             assert_eq!(variant.position.start, 39);
             assert_eq!(variant.position.length, 6);
         }
+
         let e = &Parser::parse(
             "
             .enum kkk
-                aaa[a]
-                bbb
-                mmm[b]
+                nnn: aaa[a]
         ",
         )
         .unwrap()[0];
         assert!(matches!(e, LeapType::Enum(_)));
         if let LeapType::Enum(e) = e {
             assert_eq!(e.position.start, 13);
-            assert_eq!(e.position.length, 75);
-            assert_eq!(e.variants.len(), 3);
+            assert_eq!(e.position.length, 37);
+            assert_eq!(e.variants.len(), 1);
+            let variant = &e.variants[0];
+            assert_eq!(variant.position.start, 39);
+            assert_eq!(variant.position.length, 11);
+            assert_eq!(variant.name.get(), "nnn");
+        }
+
+        let e = &Parser::parse(
+            "
+            .enum kkk
+                aaa[a]
+                bbb
+                mmm[b]
+                ccc: dddd
+        ",
+        )
+        .unwrap()[0];
+        assert!(matches!(e, LeapType::Enum(_)));
+        if let LeapType::Enum(e) = e {
+            assert_eq!(e.position.start, 13);
+            assert_eq!(e.position.length, 101);
+            assert_eq!(e.variants.len(), 4);
             let variant = &e.variants[1];
             assert_eq!(variant.position.start, 62);
             assert_eq!(variant.position.length, 3);
             let variant = &e.variants[2];
             assert_eq!(variant.position.start, 82);
             assert_eq!(variant.position.length, 6);
+            let variant = &e.variants[3];
+            assert_eq!(variant.position.start, 105);
+            assert_eq!(variant.position.length, 9);
+            assert_eq!(variant.name.get(), "ccc");
+            let type_name = if let PropType::LeapType { name, .. } = &variant.prop_type {
+                name
+            } else {
+                panic!("unexpected type")
+            };
+            assert_eq!(type_name.get(), "dddd");
+            assert_eq!(type_name.position.start, 110);
+            assert_eq!(type_name.position.length, 4);
         }
     }
 

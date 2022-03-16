@@ -9,6 +9,7 @@ pub enum TreeVariant {
     Prop,
     EnumDef,
     VariantsDef,
+    Variant,
     PType,
     PTArgsBlock,
     PTArgs,
