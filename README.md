@@ -141,15 +141,9 @@ Lets model types which can be used for REST API of blog engine:
     none
     some[t]
 
-.struct ok[t]
-    value: t
-
-.struct err[e]
-    value: e
-
 .enum result[t e]
-    ok[t]
-    err[e]
+    ok: some[t]
+    err: some[e]
 
 /-- api types
 .struct page[t]
@@ -182,7 +176,7 @@ Cargo.toml
 
 ```toml
 [dependencies]
-leap-lang = "0.1"
+leap-lang = "0.2"
 ```
 
 main.rs
