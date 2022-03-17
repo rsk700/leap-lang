@@ -163,7 +163,15 @@ fn format_enum(leap_enum: &LeapEnum) -> Vec<Block> {
     for i in 0..leap_enum.variants.len() {
         let variant = &leap_enum.variants[i];
         let next_var = leap_enum.variants.get(i + 1);
-        let text = format!("    {}", format_prop_type(&variant.prop_type));
+        let text = if variant.name.get() == variant.prop_type.name() {
+            format!("    {}", format_prop_type(&variant.prop_type))
+        } else {
+            format!(
+                "    {}: {}",
+                variant.name.get(),
+                format_prop_type(&variant.prop_type)
+            )
+        };
         let next_start = if let Some(next) = next_var {
             next.position.start
         } else {
@@ -260,6 +268,10 @@ mod tests {
         );
         assert_eq!(format(".enum    e1    s1").unwrap(), ".enum e1\n    s1\n");
         assert_eq!(
+            format(".enum    e1    aaa:    s1").unwrap(),
+            ".enum e1\n    aaa: s1\n"
+        );
+        assert_eq!(
             format(".enum    e1[a   b]    s1  v2[ a   b ]").unwrap(),
             ".enum e1[a b]\n    s1\n    v2[a b]\n"
         );
@@ -305,7 +317,10 @@ mod tests {
             "/-- text\n\n.struct s1\n"
         );
 
-        assert_eq!(format(".struct s1 / text").unwrap(), ".struct s1  /-- text\n");
+        assert_eq!(
+            format(".struct s1 / text").unwrap(),
+            ".struct s1  /-- text\n"
+        );
         assert_eq!(format(".enum s1 / text").unwrap(), ".enum s1    /-- text\n");
 
         assert_eq!(
