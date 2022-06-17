@@ -163,6 +163,18 @@ impl PartialEq for Name {
 
 impl Eq for Name {}
 
+impl Ord for Name {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl PartialOrd for Name {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl Hash for Name {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.name.hash(state);
