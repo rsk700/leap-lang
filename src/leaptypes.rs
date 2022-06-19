@@ -29,20 +29,19 @@ pub enum SimpleType {
     Boolean,
 }
 
-// todo: rename ValueType?
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum PropType {
+pub enum ValueType {
     Simple(SimpleType),
-    List(Box<PropType>),
+    List(Box<ValueType>),
     TypeArg(Name),
-    LeapType { name: Name, args: Vec<PropType> },
+    LeapType { name: Name, args: Vec<ValueType> },
 }
 
 // todo: rename -> Property
 #[derive(Debug)]
 pub struct Prop {
     pub name: Name,
-    pub prop_type: PropType,
+    pub prop_type: ValueType,
     pub position: Position,
     pub is_recursive: bool,
 }
@@ -193,7 +192,7 @@ impl SimpleType {
     }
 }
 
-impl fmt::Display for PropType {
+impl fmt::Display for ValueType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Simple(t) => match t {
@@ -220,7 +219,7 @@ impl fmt::Display for PropType {
     }
 }
 
-impl PropType {
+impl ValueType {
     pub fn to_aliased(&self, aliases: &HashMap<String, String>) -> Result<Self, String> {
         match self {
             Self::List(t) => Ok(Self::List(Box::new(t.to_aliased(aliases)?))),
@@ -245,7 +244,7 @@ impl PropType {
         }
     }
 
-    pub fn args(&self) -> Vec<PropType> {
+    pub fn args(&self) -> Vec<ValueType> {
         match self {
             Self::Simple(_) | Self::TypeArg(_) => vec![],
             Self::List(t) => vec![t.as_ref().clone()],
@@ -253,7 +252,7 @@ impl PropType {
         }
     }
 
-    pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
+    pub fn apply_args(&self, applied_args: &HashMap<&Name, &ValueType>) -> Self {
         match self {
             Self::Simple(_) => self.clone(),
             Self::List(t) => Self::List(Box::new(t.apply_args(applied_args))),
@@ -282,7 +281,7 @@ impl Prop {
         })
     }
 
-    pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
+    pub fn apply_args(&self, applied_args: &HashMap<&Name, &ValueType>) -> Self {
         Self {
             name: self.name.clone(),
             prop_type: self.prop_type.apply_args(applied_args),
@@ -333,7 +332,7 @@ impl LeapStruct {
         })
     }
 
-    pub fn map_args<'a>(&'a self, applied_args: &'a [PropType]) -> HashMap<&Name, &PropType> {
+    pub fn map_args<'a>(&'a self, applied_args: &'a [ValueType]) -> HashMap<&Name, &ValueType> {
         let mut args_map = HashMap::new();
         for (i, name) in self.args.iter().enumerate() {
             // applied_args should have same length as self.args
@@ -342,7 +341,7 @@ impl LeapStruct {
         args_map
     }
 
-    pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
+    pub fn apply_args(&self, applied_args: &HashMap<&Name, &ValueType>) -> Self {
         Self {
             name: self.name.clone(),
             // as type args was applied there is no type args any more
@@ -357,7 +356,7 @@ impl LeapStruct {
         }
     }
 
-    pub fn expand_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Vec<PropType> {
+    pub fn expand_args(&self, applied_args: &HashMap<&Name, &ValueType>) -> Vec<ValueType> {
         self.args
             .iter()
             .map(|a| (*applied_args.get(a).unwrap()).clone())
@@ -406,14 +405,14 @@ impl LeapEnum {
         })
     }
 
-    pub fn expand_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Vec<PropType> {
+    pub fn expand_args(&self, applied_args: &HashMap<&Name, &ValueType>) -> Vec<ValueType> {
         self.args
             .iter()
             .map(|a| (*applied_args.get(a).unwrap()).clone())
             .collect()
     }
 
-    pub fn map_args<'a>(&'a self, applied_args: &'a [PropType]) -> HashMap<&Name, &PropType> {
+    pub fn map_args<'a>(&'a self, applied_args: &'a [ValueType]) -> HashMap<&Name, &ValueType> {
         let mut args_map = HashMap::new();
         for (i, name) in self.args.iter().enumerate() {
             // applied_args should have same length as self.args
@@ -422,7 +421,7 @@ impl LeapEnum {
         args_map
     }
 
-    pub fn apply_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Self {
+    pub fn apply_args(&self, applied_args: &HashMap<&Name, &ValueType>) -> Self {
         Self {
             name: self.name.clone(),
             // as type args was applied there is no type args any more
@@ -514,14 +513,14 @@ impl LeapType {
         }
     }
 
-    pub fn expand_args(&self, applied_args: &HashMap<&Name, &PropType>) -> Vec<PropType> {
+    pub fn expand_args(&self, applied_args: &HashMap<&Name, &ValueType>) -> Vec<ValueType> {
         match self {
             Self::Enum(e) => e.expand_args(applied_args),
             Self::Struct(s) => s.expand_args(applied_args),
         }
     }
 
-    pub fn apply_args(&self, args: &[PropType]) -> Self {
+    pub fn apply_args(&self, args: &[ValueType]) -> Self {
         match self {
             LeapType::Struct(s) => LeapType::Struct(s.apply_args(&s.map_args(args))),
             LeapType::Enum(e) => LeapType::Enum(e.apply_args(&e.map_args(args))),
@@ -614,7 +613,7 @@ impl LeapSpec {
         }
     }
 
-    pub fn apply_args(&self, handle: LeapTypeHandle, args: &[PropType]) -> LeapType {
+    pub fn apply_args(&self, handle: LeapTypeHandle, args: &[ValueType]) -> LeapType {
         self.get_type_ref(handle).apply_args(args)
     }
 

@@ -431,7 +431,7 @@ impl Parser {
 mod tests {
 
     use super::*;
-    use crate::leaptypes::PropType;
+    use crate::leaptypes::ValueType;
 
     #[test]
     fn test_empty_spec() {
@@ -605,7 +605,7 @@ mod tests {
             assert_eq!(variant.position.start, 105);
             assert_eq!(variant.position.length, 9);
             assert_eq!(variant.name.get(), "ccc");
-            let type_name = if let PropType::LeapType { name, .. } = &variant.prop_type {
+            let type_name = if let ValueType::LeapType { name, .. } = &variant.prop_type {
                 name
             } else {
                 panic!("unexpected type")

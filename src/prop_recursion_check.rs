@@ -4,7 +4,7 @@ use std::collections::HashSet;
 pub struct PropRecursionCheck<'a> {
     spec: &'a LeapSpec,
     start_name: String,
-    visited: HashSet<PropType>,
+    visited: HashSet<ValueType>,
 }
 
 impl<'a> PropRecursionCheck<'a> {
@@ -17,7 +17,7 @@ impl<'a> PropRecursionCheck<'a> {
         check.is_recursive_check(&prop.prop_type)
     }
 
-    fn is_recursive_check(&mut self, next: &PropType) -> bool {
+    fn is_recursive_check(&mut self, next: &ValueType) -> bool {
         if self.start_name == next.name() {
             return true;
         }

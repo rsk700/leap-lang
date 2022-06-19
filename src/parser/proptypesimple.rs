@@ -1,4 +1,4 @@
-use crate::leaptypes::{Name, PropType, SimpleType};
+use crate::leaptypes::{Name, ValueType, SimpleType};
 
 use super::position::Position;
 
@@ -10,32 +10,32 @@ pub struct PropTypeSimple {
 }
 
 impl PropTypeSimple {
-    pub fn try_into_prop_type(mut self, type_args: &[Name]) -> Result<PropType, String> {
+    pub fn try_into_prop_type(mut self, type_args: &[Name]) -> Result<ValueType, String> {
         match self.name.as_str() {
             "str" => {
                 if self.args.is_empty() {
-                    Ok(PropType::Simple(SimpleType::String))
+                    Ok(ValueType::Simple(SimpleType::String))
                 } else {
                     Err("String type should not have arguments".to_owned())
                 }
             }
             "int" => {
                 if self.args.is_empty() {
-                    Ok(PropType::Simple(SimpleType::Integer))
+                    Ok(ValueType::Simple(SimpleType::Integer))
                 } else {
                     Err("Integer type should not have arguments".to_owned())
                 }
             }
             "float" => {
                 if self.args.is_empty() {
-                    Ok(PropType::Simple(SimpleType::Float))
+                    Ok(ValueType::Simple(SimpleType::Float))
                 } else {
                     Err("Float type should not have arguments".to_owned())
                 }
             }
             "bool" => {
                 if self.args.is_empty() {
-                    Ok(PropType::Simple(SimpleType::Boolean))
+                    Ok(ValueType::Simple(SimpleType::Boolean))
                 } else {
                     Err("Boolean type should not have arguments".to_owned())
                 }
@@ -43,7 +43,7 @@ impl PropTypeSimple {
             "list" => {
                 if self.args.len() == 1 {
                     let list_element = self.args.remove(0).try_into_prop_type(type_args)?;
-                    Ok(PropType::List(Box::new(list_element)))
+                    Ok(ValueType::List(Box::new(list_element)))
                 } else {
                     Err("List should have exactly one argument".to_owned())
                 }
@@ -52,7 +52,7 @@ impl PropTypeSimple {
                 let name = Name::new(name.to_owned(), self.position)?;
                 if type_args.contains(&name) {
                     if self.args.is_empty() {
-                        Ok(PropType::TypeArg(name))
+                        Ok(ValueType::TypeArg(name))
                     } else {
                         Err("Type argument can't have arguments".to_owned())
                     }
@@ -62,7 +62,7 @@ impl PropTypeSimple {
                         .into_iter()
                         .map(|a| a.try_into_prop_type(type_args))
                         .collect::<Result<_, _>>()?;
-                    Ok(PropType::LeapType { name, args })
+                    Ok(ValueType::LeapType { name, args })
                 }
             }
         }

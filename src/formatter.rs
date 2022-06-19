@@ -1,5 +1,5 @@
 use crate::{
-    leaptypes::{Comment, CommentType, LeapEnum, LeapStruct, LeapType, Name, PropType},
+    leaptypes::{Comment, CommentType, LeapEnum, LeapStruct, LeapType, Name, ValueType},
     parser::{commentsparser, parser::Parser},
 };
 
@@ -201,12 +201,12 @@ fn format_type_args(args: &[Name]) -> String {
     }
 }
 
-fn format_prop_type(prop_type: &PropType) -> String {
+fn format_prop_type(prop_type: &ValueType) -> String {
     match prop_type {
-        PropType::Simple(t) => t.name(),
-        PropType::List(t) => format!("list[{}]", format_prop_type(t)),
-        PropType::TypeArg(n) => n.get().to_owned(),
-        PropType::LeapType { name, args } => {
+        ValueType::Simple(t) => t.name(),
+        ValueType::List(t) => format!("list[{}]", format_prop_type(t)),
+        ValueType::TypeArg(n) => n.get().to_owned(),
+        ValueType::LeapType { name, args } => {
             if args.is_empty() {
                 name.get().to_owned()
             } else {
