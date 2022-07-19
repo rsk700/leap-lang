@@ -66,7 +66,7 @@ mod test {
         let spec = LeapSpec::new(Parser::parse(spec_text).unwrap());
         let h = spec.get_type_by_name("s1").unwrap();
         let t = spec.get_type_ref(h);
-        let s = t.unwrap_struct_ref();
+        let s = t.as_struct().unwrap();
         assert!(!PropRecursionCheck::is_recursive(&spec, t, &s.props[0]));
     }
 
@@ -79,7 +79,7 @@ mod test {
         let spec = LeapSpec::new(Parser::parse(spec_text).unwrap());
         let h = spec.get_type_by_name("s1").unwrap();
         let t = spec.get_type_ref(h);
-        let s = t.unwrap_struct_ref();
+        let s = t.as_struct().unwrap();
         assert!(PropRecursionCheck::is_recursive(&spec, t, &s.props[0]));
     }
 
@@ -99,7 +99,7 @@ mod test {
         let spec = LeapSpec::new(Parser::parse(spec_text).unwrap());
         let h = spec.get_type_by_name("e").unwrap();
         let t = spec.get_type_ref(h);
-        let e = t.unwrap_enum_ref();
+        let e = t.as_enum().unwrap();
         assert!(PropRecursionCheck::is_recursive(&spec, t, &e.variants[0]));
         assert!(!PropRecursionCheck::is_recursive(&spec, t, &e.variants[1]));
     }
@@ -127,18 +127,18 @@ mod test {
         spec.join(LeapSpec::new(Parser::parse(STD_TYPES).unwrap()));
         let h = spec.get_type_by_name("s1").unwrap();
         let t = spec.get_type_ref(h);
-        let s = t.unwrap_struct_ref();
+        let s = t.as_struct().unwrap();
         assert!(PropRecursionCheck::is_recursive(&spec, t, &s.props[0]));
         assert!(!PropRecursionCheck::is_recursive(&spec, t, &s.props[1]));
 
         let h = spec.get_type_by_name("s4").unwrap();
         let t = spec.get_type_ref(h);
-        let s = t.unwrap_struct_ref();
+        let s = t.as_struct().unwrap();
         assert!(PropRecursionCheck::is_recursive(&spec, t, &s.props[0]));
 
         let h = spec.get_type_by_name("s5").unwrap();
         let t = spec.get_type_ref(h);
-        let s = t.unwrap_struct_ref();
+        let s = t.as_struct().unwrap();
         assert!(PropRecursionCheck::is_recursive(&spec, t, &s.props[0]));
     }
 }

@@ -447,19 +447,19 @@ impl fmt::Display for LeapType {
 }
 
 impl LeapType {
-    pub fn unwrap_struct_ref(&self) -> &LeapStruct {
+    pub fn as_struct(&self) -> Option<&LeapStruct> {
         if let LeapType::Struct(s) = self {
-            s
+            Some(s)
         } else {
-            panic!("not a struct variant")
+            None
         }
     }
 
-    pub fn unwrap_enum_ref(&self) -> &LeapEnum {
+    pub fn as_enum(&self) -> Option<&LeapEnum> {
         if let LeapType::Enum(e) = self {
-            e
+            Some(e)
         } else {
-            panic!("not an enum variant")
+            None
         }
     }
 
@@ -681,7 +681,7 @@ mod test {
         let mut spec = LeapSpec::new(Parser::parse(spec_text).unwrap());
         spec.mark_recursive_props();
         let h = spec.get_type_by_name("s1").unwrap();
-        let s = spec.get_type_ref(h).unwrap_struct_ref();
+        let s = spec.get_type_ref(h).as_struct().unwrap();
         assert!(s.props[0].is_recursive);
         assert!(!s.props[1].is_recursive);
     }
