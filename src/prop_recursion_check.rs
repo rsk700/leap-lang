@@ -26,12 +26,12 @@ impl<'a> PropRecursionCheck<'a> {
         }
         self.visited.insert(next.clone());
         // get type if it is .struct or .enum
-        let next_h = if let Some(h) = self.spec.get_handle_by_name(&next.name()) {
-            h
+        let next_t = if let Some(t) = self.spec.get_type_by_name(&next.name()) {
+            t
         } else {
             return false;
         };
-        let next_t = self.spec.apply_args(next_h, &next.args());
+        let next_t = next_t.apply_args(&next.args());
         match next_t {
             LeapType::Struct(s) => {
                 for Prop { prop_type, .. } in &s.props {

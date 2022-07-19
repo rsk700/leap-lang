@@ -617,10 +617,6 @@ impl LeapSpec {
         }
     }
 
-    pub fn apply_args(&self, handle: LeapTypeHandle, args: &[ValueType]) -> LeapType {
-        self.get_type_ref(handle).apply_args(args)
-    }
-
     pub fn to_aliased(&self, aliases: &HashMap<String, String>) -> Result<Self, String> {
         Ok(Self::new(
             self.types
