@@ -26,7 +26,7 @@ impl<'a> PropRecursionCheck<'a> {
         }
         self.visited.insert(next.clone());
         // get type if it is .struct or .enum
-        let next_h = if let Some(h) = self.spec.get_type_by_name(&next.name()) {
+        let next_h = if let Some(h) = self.spec.get_handle_by_name(&next.name()) {
             h
         } else {
             return false;
@@ -64,8 +64,7 @@ mod test {
                 a: str
         ";
         let spec = LeapSpec::new(Parser::parse(spec_text).unwrap());
-        let h = spec.get_type_by_name("s1").unwrap();
-        let t = spec.get_type_ref(h);
+        let t = spec.get_type_by_name("s1").unwrap();
         let s = t.as_struct().unwrap();
         assert!(!PropRecursionCheck::is_recursive(&spec, t, &s.props[0]));
     }
@@ -77,8 +76,7 @@ mod test {
                 a: s1
         ";
         let spec = LeapSpec::new(Parser::parse(spec_text).unwrap());
-        let h = spec.get_type_by_name("s1").unwrap();
-        let t = spec.get_type_ref(h);
+        let t = spec.get_type_by_name("s1").unwrap();
         let s = t.as_struct().unwrap();
         assert!(PropRecursionCheck::is_recursive(&spec, t, &s.props[0]));
     }
@@ -97,8 +95,7 @@ mod test {
                 s2
         ";
         let spec = LeapSpec::new(Parser::parse(spec_text).unwrap());
-        let h = spec.get_type_by_name("e").unwrap();
-        let t = spec.get_type_ref(h);
+        let t = spec.get_type_by_name("e").unwrap();
         let e = t.as_enum().unwrap();
         assert!(PropRecursionCheck::is_recursive(&spec, t, &e.variants[0]));
         assert!(!PropRecursionCheck::is_recursive(&spec, t, &e.variants[1]));
@@ -125,19 +122,16 @@ mod test {
         ";
         let mut spec = LeapSpec::new(Parser::parse(spec_text).unwrap());
         spec.join(LeapSpec::new(Parser::parse(STD_TYPES).unwrap()));
-        let h = spec.get_type_by_name("s1").unwrap();
-        let t = spec.get_type_ref(h);
+        let t = spec.get_type_by_name("s1").unwrap();
         let s = t.as_struct().unwrap();
         assert!(PropRecursionCheck::is_recursive(&spec, t, &s.props[0]));
         assert!(!PropRecursionCheck::is_recursive(&spec, t, &s.props[1]));
 
-        let h = spec.get_type_by_name("s4").unwrap();
-        let t = spec.get_type_ref(h);
+        let t = spec.get_type_by_name("s4").unwrap();
         let s = t.as_struct().unwrap();
         assert!(PropRecursionCheck::is_recursive(&spec, t, &s.props[0]));
 
-        let h = spec.get_type_by_name("s5").unwrap();
-        let t = spec.get_type_ref(h);
+        let t = spec.get_type_by_name("s5").unwrap();
         let s = t.as_struct().unwrap();
         assert!(PropRecursionCheck::is_recursive(&spec, t, &s.props[0]));
     }

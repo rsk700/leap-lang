@@ -593,21 +593,25 @@ impl LeapSpec {
         &mut self.types[handle.as_index()]
     }
 
-    pub fn get_type_by_name(&self, name: &str) -> Option<LeapTypeHandle> {
+    pub fn get_handle_by_name(&self, name: &str) -> Option<LeapTypeHandle> {
         self.name_to_type.get(name).copied()
     }
 
+    pub fn get_type_by_name(&self, name: &str) -> Option<&LeapType> {
+        self.get_handle_by_name(name).map(|h| self.get_type_ref(h))
+    }
+
     pub fn is_struct_name(&self, name: &str) -> bool {
-        if let Some(h) = self.get_type_by_name(name) {
-            self.get_type_ref(h).is_struct()
+        if let Some(t) = self.get_type_by_name(name) {
+            t.is_struct()
         } else {
             false
         }
     }
 
     pub fn is_enum_name(&self, name: &str) -> bool {
-        if let Some(h) = self.get_type_by_name(name) {
-            self.get_type_ref(h).is_enum()
+        if let Some(t) = self.get_type_by_name(name) {
+            t.is_enum()
         } else {
             false
         }
@@ -680,8 +684,7 @@ mod test {
         ";
         let mut spec = LeapSpec::new(Parser::parse(spec_text).unwrap());
         spec.mark_recursive_props();
-        let h = spec.get_type_by_name("s1").unwrap();
-        let s = spec.get_type_ref(h).as_struct().unwrap();
+        let s = spec.get_type_by_name("s1").unwrap().as_struct().unwrap();
         assert!(s.props[0].is_recursive);
         assert!(!s.props[1].is_recursive);
     }
